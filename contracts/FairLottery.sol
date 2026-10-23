@@ -14,7 +14,7 @@ contract FairLottery {
 
     event Registered(address indexed participant);
 
-    
+
     // Variables for the participants
     struct Participant {
         bool registered;
@@ -29,6 +29,7 @@ contract FairLottery {
         address owner;
         bytes32 merkleRoot; 
         uint256 deposit;
+        uint256 moneyDeposited;
         uint256 availablePlaces;
         uint64 registrationEnd;
         uint64 commitEnd;
@@ -79,6 +80,7 @@ contract FairLottery {
         if (msg.value != lottery.deposit) revert WrongAmount();
         lottery.participants[msg.sender].registered = true;
         lottery.participantList.push(msg.sender);
+        lottery.moneyDeposited += msg.value;
 
         emit Registered(msg.sender);
     }
