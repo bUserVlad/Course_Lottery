@@ -3,14 +3,24 @@ pragma solidity ^0.8.34;
 
 contract FairLottery {
     
-    // Phases each lottery can have
-    enum Phase {Registration, DeadlinePassed, Drawn, DecisionEnd, Finished}
+    // Errors
+    error RegistrationClosed();
+    error AlreadyRegistered();
+    error WrongAmount();
+    error WrongPhase();
 
+    // Phases each lottery can have
+    enum Phase {Registration, Commit, Reveal, Drawn, Finished}
+
+    event Registered(address indexed participant);
+
+    
     // Variables for the participants
     struct Participant {
-        bool registrated;
+        bool registered;
         bytes32 commitHash;
         bool revealed;
+        bool depositRefunded;
     }
 
     // All variables that a lottery needs for a course participation
@@ -27,6 +37,7 @@ contract FairLottery {
         address[] winners;
         address[] waitingList;
         mapping(address => Participant) participants;
+        address[] participantList;
     }
 
     Lottery private lottery;
@@ -48,6 +59,30 @@ contract FairLottery {
         lottery.revealEnd = revealEnd_;
     }
 
+    // Check current phase of the lottery
+    function currentPhase() public view returns (Phase) {
+        if (lottery.phase >= Phase.Drawn) return lottery.phase;
+        if (block.timestamp < lottery.registrationEnd) return Phase.Registration;
+        if (block.timestamp < lottery.commitEnd) return Phase.Commit;
+        return Phase.Reveal;
+    } 
+
+    // Check current phase
+    modifier inPhase(Phase expectedPhase) {
+        if (currentPhase() != expectedPhase) revert WrongPhase();
+        _;
+    }
+
+    function register() external payable inPhase(Phase.Registration){
+        // if (block.timestamp > lottery.registrationEnd) revert RegistrationClosed(); 
+        if (lottery.participants[msg.sender].registered) revert AlreadyRegistered();
+        if (msg.value != lottery.deposit) revert WrongAmount();
+        lottery.participants[msg.sender].registered = true;
+        lottery.participantList.push(msg.sender);
+
+        emit Registered(msg.sender);
+    }
+
     // https://github.com/0xHuzaifa/Simple-Lottery/blob/main/Lottery.sol
     // Generating random numbers unsave version
     /*
@@ -56,6 +91,7 @@ contract FairLottery {
             block.prevrandao, block.timestamp, lottery.participants.length)));
     }
     */
+
 
     
 }
