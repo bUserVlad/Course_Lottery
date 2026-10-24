@@ -116,7 +116,7 @@ contract FairLottery {
         lottery.participantList.pop();
         lottery.participants[msg.sender].registered = false;
         lottery.moneyDeposited -= lottery.deposit;
-        (bool ok, ) = payable(msg.sender).call{value: lottery.deposit * lottery.}("");
+        (bool ok, ) = payable(msg.sender).call{value: lottery.deposit}("");
         if (!ok) revert RefundFailed();
        }
 
@@ -130,17 +130,19 @@ contract FairLottery {
         uint256 pWinnersIndex = p.winnersIndex;
         if (lottery.waitingList.length - lottery.winnersRefunded > 0) {
             address firstWaiter = lottery.waitingList[lottery.winnersRefunded];
-            lottery.winnersList[pWinnersIndex] = lottery.waitingList[winnersRefunded];
+            lottery.winners[pWinnersIndex] = lottery.waitingList[lottery.winnersRefunded];
             lottery.participants[firstWaiter].won = true;
+            lottery.participants[firstWaiter].winnersIndex = pWinnersIndex;
             lottery.winnersRefunded++;
         } else {
-            address lastIndex = lottery.winnersList[lottery.winnersList.length - 1];
-            lottery.winnersList[lastIndex].winnersIndex = pWinnersIndex;
-            lottery.winnersList.pop();
+            address lastIndex = lottery.winners[lottery.winners.length - 1];
+            lottery.participants[lastIndex].winnersIndex = pWinnersIndex;
+            lottery.winners.pop();
         }
         lottery.participants[msg.sender].won = false;
         uint256 refund = lottery.deposit * lottery.refundPercentage;
         lottery.moneyDeposited -= refund;
+        p.depositRefunded = true;
         (bool ok, ) = payable(msg.sender).call{value: refund}("");
         if (!ok) revert RefundFailed();
        }
