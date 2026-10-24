@@ -85,7 +85,7 @@ contract FairLottery {
         if (msg.value != lottery.deposit) revert WrongAmount();
 
         bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(msg.sender))));
-        if (!MerkleProof.verify(proof, lottery.merkleRoot, leaf)) revert NotEligible;
+        if (!MerkleProof.verify(proof, lottery.merkleRoot, leaf)) revert NotEligible();
 
         lottery.participants[msg.sender].registered = true;
         lottery.participantList.push(msg.sender);
