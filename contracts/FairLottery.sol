@@ -29,6 +29,7 @@ contract FairLottery {
         address owner;
         bytes32 merkleRoot; 
         uint256 deposit;
+        uint256 refundPercentage;
         uint256 moneyDeposited;
         uint256 availablePlaces;
         uint64 registrationEnd;
