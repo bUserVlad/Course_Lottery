@@ -14,23 +14,27 @@ contract FairLottery {
     error WrongPhase();
     error NotEligible();
     error RefundFailed();
+    error NotOnWaitingList();
 
     // Phases each lottery can have
     enum Phase {Registration, Commit, Reveal, Drawn, Finished}
 
     event Registered(address indexed participant);
     event Unregistered(address indexed participant);
+    event LeftWaitingList(address indexed participant);
 
 
     // Variables for the participants
     struct Participant {
         bool registered;
         bool won;
+        bool waiting;
         bytes32 commitHash;
         bool revealed;
         bool depositRefunded;
         uint256 listIndex;
         uint256 winnersIndex;
+        uint256 waitingIndex;
     }
 
     // All variables that a lottery needs for a course participation
@@ -42,6 +46,7 @@ contract FairLottery {
         uint256 refundPercentage;
         uint256 moneyDeposited;
         uint256 availablePlaces;
+        uint256 nextWaiting;
         uint64 registrationEnd;
         uint64 commitEnd;
         uint64 revealEnd;
@@ -116,23 +121,23 @@ contract FairLottery {
         lottery.participantList.pop();
         lottery.participants[msg.sender].registered = false;
         lottery.moneyDeposited -= lottery.deposit;
-        (bool ok, ) = payable(msg.sender).call{value: lottery.deposit}("");
-        if (!ok) revert RefundFailed();
-       }
+        refundDeposit(msg.sender, lottery.deposit);
+    }
 
-        // TODO
         // Take registration back before the end of the registration phase and get 100% refunded.
-        function refundAfterPlaceGranted() external payable inPhase(Phase.Drawn) {
+    function refundAfterPlaceGranted() external payable inPhase(Phase.Drawn) {
         Participant storage p = lottery.participants[msg.sender];
         if (!p.won) revert NotRegistered();
         
         // Erasing participant from winners list and replacing his spot with first on the waiting list.
         uint256 pWinnersIndex = p.winnersIndex;
-        if (lottery.waitingList.length - lottery.winnersRefunded > 0) {
-            address firstWaiter = lottery.waitingList[lottery.winnersRefunded];
-            lottery.winners[pWinnersIndex] = lottery.waitingList[lottery.winnersRefunded];
+        // Check if there is someone on the waitinglist
+        address firstWaiter = nextWaiter();
+        if (firstWaiter != address(0)) {
+            lottery.winners[pWinnersIndex] = firstWaiter;
             lottery.participants[firstWaiter].won = true;
             lottery.participants[firstWaiter].winnersIndex = pWinnersIndex;
+            lottery.participants[firstWaiter].waiting = false;
             lottery.winnersRefunded++;
         } else {
             address lastIndex = lottery.winners[lottery.winners.length - 1];
@@ -143,9 +148,44 @@ contract FairLottery {
         uint256 refund = lottery.deposit * lottery.refundPercentage;
         lottery.moneyDeposited -= refund;
         p.depositRefunded = true;
-        (bool ok, ) = payable(msg.sender).call{value: refund}("");
+        refundDeposit(msg.sender, refund);
+    }
+
+    // Leaving the waiting list and getting the full amount back
+    function leaveWaitingList() external payable inPhase(Phase.Drawn) {
+        Participant storage p = lottery.participants[msg.sender];
+        if (!p.waiting) revert NotOnWaitingList();
+    
+        p.waiting = false;
+        p.depositRefunded = true;
+        lottery.moneyDeposited -= lottery.deposit;
+
+        refundDeposit(msg.sender, lottery.deposit);
+
+        emit LeftWaitingList(msg.sender);
+    }
+
+
+    // Looking for the next address in the waiting list and ignoring participants who already left.
+    // Could be costly if many participants leave but in this situation it should be feasible.
+    function nextWaiter() private returns (address) {
+        while (lottery.nextWaiting < lottery.waitingList.length) {
+            address candidate = lottery.waitingList[lottery.nextWaiting];
+            lottery.nextWaiting++;
+            if (lottery.participants[candidate].waiting) {
+                return candidate;
+            }
+        }
+        return address(0); 
+    }
+
+    // Refunding deposit to the corresponding address
+    function refundDeposit(address receivingAddress, uint256 amount) private {
+        lottery.moneyDeposited -= amount;
+
+        (bool ok, ) = payable(receivingAddress).call{value: amount}("");
         if (!ok) revert RefundFailed();
-       }
+    }
 
     // https://github.com/0xHuzaifa/Simple-Lottery/blob/main/Lottery.sol
     // Generating random numbers unsave version
