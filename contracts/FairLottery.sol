@@ -25,10 +25,12 @@ contract FairLottery {
     // Variables for the participants
     struct Participant {
         bool registered;
+        bool won;
         bytes32 commitHash;
         bool revealed;
         bool depositRefunded;
         uint256 listIndex;
+        uint256 winnersIndex;
     }
 
     // All variables that a lottery needs for a course participation
@@ -44,6 +46,7 @@ contract FairLottery {
         uint64 commitEnd;
         uint64 revealEnd;
         bytes32 seed;
+        uint256 winnersRefunded;
         address[] winners;
         address[] waitingList;
         mapping(address => Participant) participants;
@@ -105,6 +108,7 @@ contract FairLottery {
         Participant storage p = lottery.participants[msg.sender];
         if (!p.registered) revert NotRegistered();
         
+        // Erasing participant from participant list and replacing his spot with the last person.
         uint256 pIndex = p.listIndex;
         address lastIndex = lottery.participantList[lottery.participantList.length - 1];
         lottery.participantList[pIndex] = lastIndex;
@@ -112,7 +116,32 @@ contract FairLottery {
         lottery.participantList.pop();
         lottery.participants[msg.sender].registered = false;
         lottery.moneyDeposited -= lottery.deposit;
-        (bool ok, ) = payable(msg.sender).call{value: lottery.deposit}("");
+        (bool ok, ) = payable(msg.sender).call{value: lottery.deposit * lottery.}("");
+        if (!ok) revert RefundFailed();
+       }
+
+        // TODO
+        // Take registration back before the end of the registration phase and get 100% refunded.
+        function refundAfterPlaceGranted() external payable inPhase(Phase.Drawn) {
+        Participant storage p = lottery.participants[msg.sender];
+        if (!p.won) revert NotRegistered();
+        
+        // Erasing participant from winners list and replacing his spot with first on the waiting list.
+        uint256 pWinnersIndex = p.winnersIndex;
+        if (lottery.waitingList.length - lottery.winnersRefunded > 0) {
+            address firstWaiter = lottery.waitingList[lottery.winnersRefunded];
+            lottery.winnersList[pWinnersIndex] = lottery.waitingList[winnersRefunded];
+            lottery.participants[firstWaiter].won = true;
+            lottery.winnersRefunded++;
+        } else {
+            address lastIndex = lottery.winnersList[lottery.winnersList.length - 1];
+            lottery.winnersList[lastIndex].winnersIndex = pWinnersIndex;
+            lottery.winnersList.pop();
+        }
+        lottery.participants[msg.sender].won = false;
+        uint256 refund = lottery.deposit * lottery.refundPercentage;
+        lottery.moneyDeposited -= refund;
+        (bool ok, ) = payable(msg.sender).call{value: refund}("");
         if (!ok) revert RefundFailed();
        }
 
