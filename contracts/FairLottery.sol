@@ -15,6 +15,7 @@ contract FairLottery {
     error NotEligible();
     error RefundFailed();
     error NotOnWaitingList();
+    error InvalidRefundPercentage();
 
     // Phases each lottery can have
     enum Phase {Registration, Commit, Reveal, Drawn, Finished}
@@ -51,7 +52,6 @@ contract FairLottery {
         uint64 commitEnd;
         uint64 revealEnd;
         bytes32 seed;
-        uint256 winnersRefunded;
         address[] winners;
         address[] waitingList;
         mapping(address => Participant) participants;
@@ -63,14 +63,17 @@ contract FairLottery {
     constructor(
         bytes32 merkleRoot_,
         uint256 deposit_,
+        uint256 refundPercentage_,
         uint256 availablePlaces_,
         uint64 registrationEnd_,
         uint64 commitEnd_,
         uint64 revealEnd_
-    ) {
+    ) { 
         lottery.owner = msg.sender;
         lottery.merkleRoot = merkleRoot_;
         lottery.deposit = deposit_;
+        if (refundPercentage_ > 100) revert InvalidRefundPercentage();
+        lottery.refundPercentage = refundPercentage_;
         lottery.availablePlaces = availablePlaces_;
         lottery.registrationEnd = registrationEnd_;
         lottery.commitEnd = commitEnd_;
@@ -108,7 +111,7 @@ contract FairLottery {
     }
 
     // Take registration back before the end of the registration phase and get 100% refunded.
-    function unregister() external payable inPhase(Phase.Registration) {
+    function unregister() external inPhase(Phase.Registration) {
         // require(block.timestamp < lottery.registrationEnd, "Registration closed. Can't unregistrate.");
         Participant storage p = lottery.participants[msg.sender];
         if (!p.registered) revert NotRegistered();
@@ -118,14 +121,14 @@ contract FairLottery {
         address lastIndex = lottery.participantList[lottery.participantList.length - 1];
         lottery.participantList[pIndex] = lastIndex;
         lottery.participants[lastIndex].listIndex = pIndex;
+        lottery.winners[pIndex] = lastIndex;
         lottery.participantList.pop();
         lottery.participants[msg.sender].registered = false;
-        lottery.moneyDeposited -= lottery.deposit;
         refundDeposit(msg.sender, lottery.deposit);
     }
 
         // Take registration back before the end of the registration phase and get 100% refunded.
-    function refundAfterPlaceGranted() external payable inPhase(Phase.Drawn) {
+    function refundAfterPlaceGranted() external inPhase(Phase.Drawn) {
         Participant storage p = lottery.participants[msg.sender];
         if (!p.won) revert NotRegistered();
         
@@ -138,27 +141,24 @@ contract FairLottery {
             lottery.participants[firstWaiter].won = true;
             lottery.participants[firstWaiter].winnersIndex = pWinnersIndex;
             lottery.participants[firstWaiter].waiting = false;
-            lottery.winnersRefunded++;
         } else {
             address lastIndex = lottery.winners[lottery.winners.length - 1];
             lottery.participants[lastIndex].winnersIndex = pWinnersIndex;
             lottery.winners.pop();
         }
         lottery.participants[msg.sender].won = false;
-        uint256 refund = lottery.deposit * lottery.refundPercentage;
-        lottery.moneyDeposited -= refund;
+        uint256 refund = lottery.deposit * lottery.refundPercentage / 100;
         p.depositRefunded = true;
         refundDeposit(msg.sender, refund);
     }
 
     // Leaving the waiting list and getting the full amount back
-    function leaveWaitingList() external payable inPhase(Phase.Drawn) {
+    function leaveWaitingList() external inPhase(Phase.Drawn) {
         Participant storage p = lottery.participants[msg.sender];
         if (!p.waiting) revert NotOnWaitingList();
     
         p.waiting = false;
         p.depositRefunded = true;
-        lottery.moneyDeposited -= lottery.deposit;
 
         refundDeposit(msg.sender, lottery.deposit);
 
