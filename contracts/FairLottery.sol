@@ -9,14 +9,17 @@ contract FairLottery {
     // Errors
     error RegistrationClosed();
     error AlreadyRegistered();
+    error NotRegistered();
     error WrongAmount();
     error WrongPhase();
     error NotEligible();
+    error RefundFailed();
 
     // Phases each lottery can have
     enum Phase {Registration, Commit, Reveal, Drawn, Finished}
 
     event Registered(address indexed participant);
+    event Unregistered(address indexed participant);
 
 
     // Variables for the participants
@@ -25,6 +28,7 @@ contract FairLottery {
         bytes32 commitHash;
         bool revealed;
         bool depositRefunded;
+        uint256 listIndex;
     }
 
     // All variables that a lottery needs for a course participation
@@ -88,11 +92,29 @@ contract FairLottery {
         if (!MerkleProof.verify(proof, lottery.merkleRoot, leaf)) revert NotEligible();
 
         lottery.participants[msg.sender].registered = true;
+        lottery.participants[msg.sender].listIndex = lottery.participantList.length;
         lottery.participantList.push(msg.sender);
         lottery.moneyDeposited += msg.value;
 
         emit Registered(msg.sender);
     }
+
+    // Take registration back before the end of the registration phase and get 100% refunded.
+    function unregister() external payable inPhase(Phase.Registration) {
+        // require(block.timestamp < lottery.registrationEnd, "Registration closed. Can't unregistrate.");
+        Participant storage p = lottery.participants[msg.sender];
+        if (!p.registered) revert NotRegistered();
+        
+        uint256 pIndex = p.listIndex;
+        address lastIndex = lottery.participantList[lottery.participantList.length - 1];
+        lottery.participantList[pIndex] = lastIndex;
+        lottery.participants[lastIndex].listIndex = pIndex;
+        lottery.participantList.pop();
+        lottery.participants[msg.sender].registered = false;
+        lottery.moneyDeposited -= lottery.deposit;
+        (bool ok, ) = payable(msg.sender).call{value: lottery.deposit}("");
+        if (!ok) revert RefundFailed();
+       }
 
     // https://github.com/0xHuzaifa/Simple-Lottery/blob/main/Lottery.sol
     // Generating random numbers unsave version
