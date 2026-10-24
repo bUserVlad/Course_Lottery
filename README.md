@@ -19,3 +19,7 @@ Accepting a place and not attending: deposit forfeited
 Redistribution: Forfeited deposits are distributed to the admitted participants, since their deposits are returned later than those of others. Each participant claims their share individually.
 
 *Limitations:* Eligibility still depends on the university, and attendance cannot be observed on-chain directly. It requires either an active acceptance step or a public absence report by the lecturer. These trust assumptions will be stated openly.
+
+
+## Sources:
+https://github.com/OpenZeppelin/merkle-tree

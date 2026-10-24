@@ -1,5 +1,8 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: MIT
+
 pragma solidity ^0.8.34;
+
+import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 contract FairLottery {
     
@@ -8,6 +11,7 @@ contract FairLottery {
     error AlreadyRegistered();
     error WrongAmount();
     error WrongPhase();
+    error NotEligible();
 
     // Phases each lottery can have
     enum Phase {Registration, Commit, Reveal, Drawn, Finished}
@@ -75,10 +79,14 @@ contract FairLottery {
         _;
     }
 
-    function register() external payable inPhase(Phase.Registration){
+    function register(bytes32[] calldata proof) external payable inPhase(Phase.Registration){
         // if (block.timestamp > lottery.registrationEnd) revert RegistrationClosed(); 
         if (lottery.participants[msg.sender].registered) revert AlreadyRegistered();
         if (msg.value != lottery.deposit) revert WrongAmount();
+
+        bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(msg.sender))));
+        if (!MerkleProof.verify(proof, lottery.merkleRoot, leaf)) revert NotEligible;
+
         lottery.participants[msg.sender].registered = true;
         lottery.participantList.push(msg.sender);
         lottery.moneyDeposited += msg.value;
