@@ -99,4 +99,13 @@ describe("FairLottery: Unregister", function () {
         const tx = lottery.connect(alice).unregister()
         await expect(tx).to.be.revertedWithCustomError(lottery, "NotRegistered");
     });
+
+    // Only test the unregistration w/o registration since carol's address not part of the markle tree
+    it("Can not unregister if address not part of markle tree", async function () {
+        const { lottery, carol } = await deployLottery();
+
+        const tx = lottery.connect(carol).unregister()
+        await expect(tx).to.be.revertedWithCustomError(lottery, "NotRegistered");
+    });
+
 });
