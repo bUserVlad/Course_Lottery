@@ -196,10 +196,16 @@ contract FairLottery {
       return lottery.participantList;
     }
 
-    // Overview of the participant list
+    // Overview of the winner list
     function getWinners() external view returns (address[] memory) {
       return lottery.winners;
     }
+
+    // Overview of the waiting list
+    function getWaitingList() external view returns (address[] memory) {
+      return lottery.waitingList;
+    }
+
 
     // https://github.com/0xHuzaifa/Simple-Lottery/blob/main/Lottery.sol
     // Generating random numbers unsave version
