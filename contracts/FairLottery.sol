@@ -18,11 +18,13 @@ contract FairLottery {
     error InvalidRefundPercentage();
 
     // Phases each lottery can have
-    enum Phase {Registration, Commit, Reveal, Drawn, Finished}
+    enum Phase {Registration, Commit, Reveal, ReadyToDraw, Drawn, Finished}
 
     event Registered(address indexed participant);
     event Unregistered(address indexed participant);
     event LeftWaitingList(address indexed participant);
+    event Winner(address indexed participant);
+    event Waiter(address indexed participant);
 
 
     // Variables for the participants
@@ -85,7 +87,8 @@ contract FairLottery {
         if (lottery.phase >= Phase.Drawn) return lottery.phase;
         if (block.timestamp < lottery.registrationEnd) return Phase.Registration;
         if (block.timestamp < lottery.commitEnd) return Phase.Commit;
-        return Phase.Reveal;
+        if (block.timestamp < lottery.revealEnd) return Phase.Reveal;
+        return Phase.ReadyToDraw;
     } 
 
     // Check current phase
@@ -143,6 +146,7 @@ contract FairLottery {
             lottery.participants[firstWaiter].won = true;
             lottery.participants[firstWaiter].winnersIndex = pWinnersIndex;
             lottery.participants[firstWaiter].waiting = false;
+
         } else {
             address lastIndex = lottery.winners[lottery.winners.length - 1];
             lottery.participants[lastIndex].winnersIndex = pWinnersIndex;
@@ -188,6 +192,44 @@ contract FairLottery {
 
         (bool ok, ) = payable(receivingAddress).call{value: amount}("");
         if (!ok) revert RefundFailed();
+    }
+
+    function draw() external inPhase(Phase.ReadyToDraw){
+        drawWinnersShuffleArray();
+        lottery.phase = Phase.Drawn;
+    }
+
+    // Fisher-Yates-Shuffle
+    // https://ethereum.stackexchange.com/questions/129364/randomly-shuffling-a-mapping-in-solidity
+    function drawWinnersShuffleArray() private {
+        address[] memory pool = lottery.participantList;
+
+        uint256 remaining = pool.length;
+        uint256 maxPicks = lottery.availablePlaces * 2; // Waiting list will be as long as the winners list
+        uint256 picks = remaining < maxPicks ? remaining : maxPicks; // min(remaining, maxPicks)
+        
+        // There remain elements to shuffle
+        for (uint256 i; i < picks; i++) {
+            // Pick a remaining element
+            uint256 randId = uint256(keccak256(abi.encode(lottery.seed, i))) % remaining; 
+            address picked = pool[randId];
+
+            remaining--;
+            pool[randId] = pool[remaining];
+
+            Participant storage p = lottery.participants[picked];
+            if (i < lottery.availablePlaces) { // If is there is space for a winner
+                p.won = true;
+                p.winnersIndex = lottery.winners.length;
+                lottery.winners.push(picked);
+                emit Winner(picked);
+            } else { // waitings list
+                p.waiting = true;
+                p.waitingIndex = lottery.waitingList.length;
+                lottery.waitingList.push(picked);
+                emit Waiter(picked);
+            }
+        }
     }
 
 
