@@ -118,12 +118,11 @@ contract FairLottery {
         
         // Erasing participant from participant list and replacing his spot with the last person.
         uint256 pIndex = p.listIndex;
-        address lastIndex = lottery.participantList[lottery.participantList.length - 1];
-        lottery.participantList[pIndex] = lastIndex;
-        lottery.participants[lastIndex].listIndex = pIndex;
-        lottery.winners[pIndex] = lastIndex;
+        address last = lottery.participantList[lottery.participantList.length - 1];
+        lottery.participantList[pIndex] = last;
+        lottery.participants[last].listIndex = pIndex;
         lottery.participantList.pop();
-        lottery.participants[msg.sender].registered = false;
+        p.registered = false;
         
         refundDeposit(msg.sender, lottery.deposit);
 
