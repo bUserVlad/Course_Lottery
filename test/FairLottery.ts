@@ -20,7 +20,7 @@ async function deployLottery(overrides = {}) {
   const params = {
     merkleRoot: tree.root,
     deposit: ethers.parseEther("0.0001"),
-    refundPercentage: 50,
+    refundPercentage: 50, // 50 %
     availablePlaces: 2,
     registrationEnd: now + 1000, // now + 1_000 seconds
     commitEnd: now + 2000,
@@ -28,7 +28,7 @@ async function deployLottery(overrides = {}) {
     ...overrides,
   };
 
-  console.log(params);
+  // console.log(params);
 
   // Deployment of the lottery with the previous created parameters
   const lottery = await ethers.deployContract("FairLottery", [

@@ -20,6 +20,9 @@ Redistribution: Forfeited deposits are distributed to the admitted participants,
 
 *Limitations:* Eligibility still depends on the university, and attendance cannot be observed on-chain directly. It requires either an active acceptance step or a public absence report by the lecturer. These trust assumptions will be stated openly.
 
+## Limitation or Difficulties
+There is no randomness since everything is on chain.
+TODO: Make randomness random maybe with a secret number or code from each partiipant.
 
 ## Sources:
 https://github.com/OpenZeppelin/merkle-tree
