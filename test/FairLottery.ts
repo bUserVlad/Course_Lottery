@@ -90,4 +90,13 @@ describe("FairLottery: Unregister", function () {
         await expect(tx).and.to.emit(lottery, "Unregistered").withArgs(alice.address)
     });
 
+    it("Can not unregister if already unregisterd before a new registration", async function () {
+        const { lottery, tree, params, alice } = await deployLottery();
+        await registerAs(lottery, tree, alice, params.deposit); // succesfully registerd
+
+        await lottery.connect(alice).unregister()
+
+        const tx = lottery.connect(alice).unregister()
+        await expect(tx).to.be.revertedWithCustomError(lottery, "NotRegistered");
+    });
 });
