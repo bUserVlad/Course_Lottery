@@ -124,7 +124,10 @@ contract FairLottery {
         lottery.winners[pIndex] = lastIndex;
         lottery.participantList.pop();
         lottery.participants[msg.sender].registered = false;
+        
         refundDeposit(msg.sender, lottery.deposit);
+
+        emit Unregistered(msg.sender);
     }
 
         // Take registration back before the end of the registration phase and get 100% refunded.
@@ -149,6 +152,7 @@ contract FairLottery {
         lottery.participants[msg.sender].won = false;
         uint256 refund = lottery.deposit * lottery.refundPercentage / 100;
         p.depositRefunded = true;
+
         refundDeposit(msg.sender, refund);
     }
 
@@ -185,6 +189,12 @@ contract FairLottery {
 
         (bool ok, ) = payable(receivingAddress).call{value: amount}("");
         if (!ok) revert RefundFailed();
+    }
+
+
+    // Overview of the participant list
+    function getParticipants() external view returns (address[] memory) {
+      return lottery.participantList;
     }
 
     // https://github.com/0xHuzaifa/Simple-Lottery/blob/main/Lottery.sol

@@ -28,6 +28,7 @@ async function deployLottery(overrides = {}) {
   };
 
   console.log(params);
+
   // Deployment of the lottery with the previous created parameters
   const lottery = await ethers.deployContract("FairLottery", [
     params.merkleRoot,
@@ -44,6 +45,36 @@ async function deployLottery(overrides = {}) {
 
 describe("FairLottery: Merkle-Elegible", function () {
   it("Allowed are only registrations with a valide proof", async function () {
+    const { lottery, tree, params, alice } = await deployLottery();
+    const proof = tree.getProof([alice.address]);
+
+    await expect(
+      lottery.connect(alice).register(proof, { value: params.deposit })
+    )
+      .to.emit(lottery, "Registered")
+      .withArgs(alice.address);
+  });
+
+  it("Rejects a not elegible address", async function () {
+    const { lottery, tree, params, alice, carol } = await deployLottery();
+    const aliceProof = tree.getProof([alice.address]);
+
+    await expect(
+      lottery.connect(carol).register(aliceProof, { value: params.deposit })
+    ).to.be.revertedWithCustomError(lottery, "NotEligible");
+  });
+
+  it("Rejects an empty proof", async function () {
+    const { lottery, params, carol } = await deployLottery();
+
+    await expect(
+      lottery.connect(carol).register([], { value: params.deposit })
+    ).to.be.revertedWithCustomError(lottery, "NotEligible");
+  });
+});
+
+describe("FairLottery: Unregister", function () {
+  it("Can only unregister if already registerd", async function () {
     const { lottery, tree, params, alice } = await deployLottery();
     const proof = tree.getProof([alice.address]);
 
