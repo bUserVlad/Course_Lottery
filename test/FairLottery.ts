@@ -128,3 +128,24 @@ describe("FairLottery: Unregister", function () {
             ).to.emit(lottery, "Registered");
     });
 });
+
+// Testing if view function of the participations list works
+describe("FairLottery: Participation list", function () {
+    it("Participations list only lists participants", async function () {
+        const { lottery, tree, params, alice , bob, carol} = await deployLottery();
+        await registerAs(lottery, tree, alice, params.deposit);
+        await registerAs(lottery, tree, bob, params.deposit);
+
+        const list = await lottery.getParticipants()
+        expect(list.length).to.equal(2);
+        expect(list).to.include(alice.address);
+        expect(list).to.include(bob.address);
+        expect(list).not.to.include(carol.address);
+    });
+
+    it("Participantions list starts empty", async function () {
+        const { lottery } = await deployLottery();
+        const list = await lottery.getParticipants();
+        expect(list.length).to.equal(0);
+    });
+});
