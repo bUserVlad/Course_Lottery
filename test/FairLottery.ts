@@ -131,6 +131,17 @@ describe("FairLottery: Unregister", function () {
 
 // Testing if view function of the participations list works
 describe("FairLottery: Participation list", function () {
+    it("Participations list only the only participant", async function () {
+        const { lottery, tree, params, alice, bob, carol } = await deployLottery();
+        await registerAs(lottery, tree, alice, params.deposit);
+
+        const list = await lottery.getParticipants()
+        expect(list.length).to.equal(1);
+        expect(list).to.include(alice.address);
+        expect(list).not.to.include(bob.address);
+        expect(list).not.to.include(carol.address);
+    });
+
     it("Participations list only lists participants", async function () {
         const { lottery, tree, params, alice , bob, carol} = await deployLottery();
         await registerAs(lottery, tree, alice, params.deposit);
