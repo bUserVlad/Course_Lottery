@@ -1,8 +1,9 @@
 import { expect } from "chai";
 import { network } from "hardhat";
 import { StandardMerkleTree } from "@openzeppelin/merkle-tree";
+import { Network } from "ethers";
 
-const { ethers } = await network.create();
+const { ethers, networkHelpers } = await network.create();
 
 // Setup-Helper: deployt eine Lotterie, einzelne Werte lassen sich pro Test überschreiben
 async function deployLottery(overrides = {}) {
@@ -108,4 +109,22 @@ describe("FairLottery: Unregister", function () {
         await expect(tx).to.be.revertedWithCustomError(lottery, "NotRegistered");
     });
 
+    it("Rejecting unregister durich the wrong phase", async function () {
+        const { lottery, tree, params, alice } = await deployLottery();
+        await registerAs(lottery, tree, alice, params.deposit);
+
+        await networkHelpers.time.increaseTo(params.registrationEnd);
+        
+        const tx = lottery.connect(alice).unregister()
+        await expect(tx).to.be.revertedWithCustomError(lottery, "WrongPhase");
+    });
+
+    it("Still accepting registration shorty before registration ends", async function() {
+        const { lottery, tree, params, alice } = await deployLottery();
+        await networkHelpers.time.increaseTo(params.registrationEnd - 10); // 10 secondes before registration ends
+
+        await expect(
+            lottery.connect(alice).register(tree.getProof([alice.address]), {value: params.deposit})
+            ).to.emit(lottery, "Registered");
+    });
 });
