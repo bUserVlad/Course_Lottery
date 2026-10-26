@@ -7,11 +7,11 @@ const { ethers, networkHelpers } = await network.create();
 
 // Setup-Helper: deployt eine Lotterie, einzelne Werte lassen sich pro Test überschreiben
 async function deployLottery(overrides = {}) {
-  const [owner, alice, bob, carol] = await ethers.getSigners();
+  const [owner, anna, bruno, claudia, diego, elodie, florian, globi] = await ethers.getSigners();
 
-  // Eligible are only Alice and Bob 
+  // Eligible are only anna and bruno 
   const tree = StandardMerkleTree.of(
-    [[alice.address], [bob.address]],
+    [[anna.address], [bruno.address], [claudia.address], [diego.address], [elodie.address]],
     ["address"]
   );
 
@@ -41,35 +41,35 @@ async function deployLottery(overrides = {}) {
     params.revealEnd,
   ]);
 
-  return { lottery, tree, params, owner, alice, bob, carol };
+  return { lottery, tree, params, owner, anna, bruno, claudia, diego, elodie, florian, globi};
 }
 
 describe("FairLottery: Merkle-Elegible", function () {
   it("Allowed are only registrations with a valide proof", async function () {
-    const { lottery, tree, params, alice } = await deployLottery();
-    const proof = tree.getProof([alice.address]);
+    const { lottery, tree, params, anna } = await deployLottery();
+    const proof = tree.getProof([anna.address]);
 
     await expect(
-      lottery.connect(alice).register(proof, { value: params.deposit })
+      lottery.connect(anna).register(proof, { value: params.deposit })
     )
       .to.emit(lottery, "Registered")
-      .withArgs(alice.address);
+      .withArgs(anna.address);
   });
 
   it("Rejects a not elegible address", async function () {
-    const { lottery, tree, params, alice, carol } = await deployLottery();
-    const aliceProof = tree.getProof([alice.address]);
+    const { lottery, tree, params, anna, globi } = await deployLottery();
+    const annaProof = tree.getProof([anna.address]);
 
     await expect(
-      lottery.connect(carol).register(aliceProof, { value: params.deposit })
+      lottery.connect(globi).register(annaProof, { value: params.deposit })
     ).to.be.revertedWithCustomError(lottery, "NotEligible");
   });
 
   it("Rejects an empty proof", async function () {
-    const { lottery, params, carol } = await deployLottery();
+    const { lottery, params, globi } = await deployLottery();
 
     await expect(
-      lottery.connect(carol).register([], { value: params.deposit })
+      lottery.connect(globi).register([], { value: params.deposit })
     ).to.be.revertedWithCustomError(lottery, "NotEligible");
   });
 });
@@ -83,48 +83,48 @@ async function registerAs(lottery: any, tree: any, signer: any, deposit: bigint)
 // Testing if only registered people can unregister during the registration period
 describe("FairLottery: Unregister", function () {
     it("Can only unregister if already registerd", async function () {
-        const { lottery, tree, params, alice } = await deployLottery();
-        await registerAs(lottery, tree, alice, params.deposit); // succesfully registerd
+        const { lottery, tree, params, anna } = await deployLottery();
+        await registerAs(lottery, tree, anna, params.deposit); // succesfully registerd
 
-        const tx = lottery.connect(alice).unregister()
-        await expect(tx).to.changeEtherBalance(ethers, alice, params.deposit)
-        await expect(tx).and.to.emit(lottery, "Unregistered").withArgs(alice.address)
+        const tx = lottery.connect(anna).unregister()
+        await expect(tx).to.changeEtherBalance(ethers, anna, params.deposit)
+        await expect(tx).and.to.emit(lottery, "Unregistered").withArgs(anna.address)
     });
 
     it("Can not unregister if already unregisterd before a new registration", async function () {
-        const { lottery, tree, params, alice } = await deployLottery();
-        await registerAs(lottery, tree, alice, params.deposit); // succesfully registerd
+        const { lottery, tree, params, anna } = await deployLottery();
+        await registerAs(lottery, tree, anna, params.deposit); // succesfully registerd
 
-        await lottery.connect(alice).unregister()
+        await lottery.connect(anna).unregister()
 
-        const tx = lottery.connect(alice).unregister()
+        const tx = lottery.connect(anna).unregister()
         await expect(tx).to.be.revertedWithCustomError(lottery, "NotRegistered");
     });
 
-    // Only test the unregistration w/o registration since carol's address not part of the markle tree
+    // Only test the unregistration w/o registration since globi's address not part of the markle tree
     it("Can not unregister if address not part of markle tree", async function () {
-        const { lottery, carol } = await deployLottery();
+        const { lottery, globi } = await deployLottery();
 
-        const tx = lottery.connect(carol).unregister()
+        const tx = lottery.connect(globi).unregister()
         await expect(tx).to.be.revertedWithCustomError(lottery, "NotRegistered");
     });
 
     it("Rejecting unregister durich the wrong phase", async function () {
-        const { lottery, tree, params, alice } = await deployLottery();
-        await registerAs(lottery, tree, alice, params.deposit);
+        const { lottery, tree, params, anna } = await deployLottery();
+        await registerAs(lottery, tree, anna, params.deposit);
 
         await networkHelpers.time.increaseTo(params.registrationEnd);
         
-        const tx = lottery.connect(alice).unregister()
+        const tx = lottery.connect(anna).unregister()
         await expect(tx).to.be.revertedWithCustomError(lottery, "WrongPhase");
     });
 
     it("Still accepting registration shorty before registration ends", async function() {
-        const { lottery, tree, params, alice } = await deployLottery();
+        const { lottery, tree, params, anna } = await deployLottery();
         await networkHelpers.time.increaseTo(params.registrationEnd - 10); // 10 secondes before registration ends
 
         await expect(
-            lottery.connect(alice).register(tree.getProof([alice.address]), {value: params.deposit})
+            lottery.connect(anna).register(tree.getProof([anna.address]), {value: params.deposit})
             ).to.emit(lottery, "Registered");
     });
 });
@@ -132,26 +132,26 @@ describe("FairLottery: Unregister", function () {
 // Testing if view function of the participations list works
 describe("FairLottery: Participation list", function () {
     it("Participations list only the only participant", async function () {
-        const { lottery, tree, params, alice, bob, carol } = await deployLottery();
-        await registerAs(lottery, tree, alice, params.deposit);
+        const { lottery, tree, params, anna, bruno, globi } = await deployLottery();
+        await registerAs(lottery, tree, anna, params.deposit);
 
         const list = await lottery.getParticipants()
         expect(list.length).to.equal(1);
-        expect(list).to.include(alice.address);
-        expect(list).not.to.include(bob.address);
-        expect(list).not.to.include(carol.address);
+        expect(list).to.include(anna.address);
+        expect(list).not.to.include(bruno.address);
+        expect(list).not.to.include(globi.address);
     });
 
     it("Participations list only lists participants", async function () {
-        const { lottery, tree, params, alice , bob, carol} = await deployLottery();
-        await registerAs(lottery, tree, alice, params.deposit);
-        await registerAs(lottery, tree, bob, params.deposit);
+        const { lottery, tree, params, anna , bruno, globi} = await deployLottery();
+        await registerAs(lottery, tree, anna, params.deposit);
+        await registerAs(lottery, tree, bruno, params.deposit);
 
         const list = await lottery.getParticipants()
         expect(list.length).to.equal(2);
-        expect(list).to.include(alice.address);
-        expect(list).to.include(bob.address);
-        expect(list).not.to.include(carol.address);
+        expect(list).to.include(anna.address);
+        expect(list).to.include(bruno.address);
+        expect(list).not.to.include(globi.address);
     });
 
     it("Participantions list starts empty", async function () {
@@ -159,4 +159,26 @@ describe("FairLottery: Participation list", function () {
         const list = await lottery.getParticipants();
         expect(list.length).to.equal(0);
     });
+});
+
+// Testing if draw function works
+describe("FairLottery: Fisher-Yates-Shuffle", function () {
+    it("Correct Amount of winners are drawn", async function () {
+      const { lottery, tree, params, anna, bruno, claudia, diego, elodie } = await deployLottery();
+      await registerAs(lottery, tree, anna, params.deposit);
+      await registerAs(lottery, tree, bruno, params.deposit);
+      await registerAs(lottery, tree, claudia, params.deposit);
+      await registerAs(lottery, tree, diego, params.deposit);
+      await registerAs(lottery, tree, elodie, params.deposit);
+
+      await networkHelpers.time.increaseTo(params.revealEnd);
+      await lottery.draw();
+
+      const winners = await lottery.getWinners();
+      const waiter = await lottery.getWaitingList();
+
+      expect(winners.length).to.equal(params.availablePlaces);
+      expect(waiter.length).to.equal(params.availablePlaces);
+    });
+
 });
