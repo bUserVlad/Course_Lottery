@@ -131,40 +131,41 @@ describe("FairLottery: Unregister", function () {
 
 // Testing if view function of the participations list works
 describe("FairLottery: Participation list", function () {
-    it("Participations list only the only participant", async function () {
-        const { lottery, tree, params, anna, bruno, globi } = await deployLottery();
-        await registerAs(lottery, tree, anna, params.deposit);
+  it("Participations list only the only participant", async function () {
+      const { lottery, tree, params, anna, bruno, globi } = await deployLottery();
+      await registerAs(lottery, tree, anna, params.deposit);
 
-        const list = await lottery.getParticipants()
-        expect(list.length).to.equal(1);
-        expect(list).to.include(anna.address);
-        expect(list).not.to.include(bruno.address);
-        expect(list).not.to.include(globi.address);
-    });
+      const list = await lottery.getParticipants()
+      expect(list.length).to.equal(1);
+      expect(list).to.include(anna.address);
+      expect(list).not.to.include(bruno.address);
+      expect(list).not.to.include(globi.address);
+  });
 
-    it("Participations list only lists participants", async function () {
-        const { lottery, tree, params, anna , bruno, globi} = await deployLottery();
-        await registerAs(lottery, tree, anna, params.deposit);
-        await registerAs(lottery, tree, bruno, params.deposit);
+  it("Participations list only lists participants", async function () {
+      const { lottery, tree, params, anna , bruno, globi} = await deployLottery();
+      await registerAs(lottery, tree, anna, params.deposit);
+      await registerAs(lottery, tree, bruno, params.deposit);
 
-        const list = await lottery.getParticipants()
-        expect(list.length).to.equal(2);
-        expect(list).to.include(anna.address);
-        expect(list).to.include(bruno.address);
-        expect(list).not.to.include(globi.address);
-    });
+      const list = await lottery.getParticipants()
+      expect(list.length).to.equal(2);
+      expect(list).to.include(anna.address);
+      expect(list).to.include(bruno.address);
+      expect(list).not.to.include(globi.address);
+  });
 
-    it("Participantions list starts empty", async function () {
-        const { lottery } = await deployLottery();
-        const list = await lottery.getParticipants();
-        expect(list.length).to.equal(0);
-    });
+  it("Participantions list starts empty", async function () {
+      const { lottery } = await deployLottery();
+      const list = await lottery.getParticipants();
+      expect(list.length).to.equal(0);
+  });
 });
 
 // Testing if draw function works
 describe("FairLottery: Fisher-Yates-Shuffle", function () {
-    it("Correct Amount of winners are drawn", async function () {
-      const { lottery, tree, params, anna, bruno, claudia, diego, elodie } = await deployLottery();
+  async function registerFive() {
+    const deployment = await deployLottery()
+    const { lottery, tree, params, anna, bruno, claudia, diego, elodie } = deployment;
       await registerAs(lottery, tree, anna, params.deposit);
       await registerAs(lottery, tree, bruno, params.deposit);
       await registerAs(lottery, tree, claudia, params.deposit);
@@ -172,13 +173,18 @@ describe("FairLottery: Fisher-Yates-Shuffle", function () {
       await registerAs(lottery, tree, elodie, params.deposit);
 
       await networkHelpers.time.increaseTo(params.revealEnd);
-      await lottery.draw();
+      
+      return deployment;
+  }
+  it("Correct Amount of winners are drawn", async function () {
+    const {lottery, params} = await registerFive();
+    await lottery.draw();
 
-      const winners = await lottery.getWinners();
-      const waiter = await lottery.getWaitingList();
+    const winners = await lottery.getWinners();
+    const waiter = await lottery.getWaitingList();
 
-      expect(winners.length).to.equal(params.availablePlaces);
-      expect(waiter.length).to.equal(params.availablePlaces);
-    });
+    expect(winners.length).to.equal(params.availablePlaces);
+    expect(waiter.length).to.equal(params.availablePlaces);
+  });
 
 });
