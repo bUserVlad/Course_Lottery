@@ -187,6 +187,8 @@ describe("FairLottery: Participation list", function () {
 
 // Testing if draw function works
 describe("FairLottery: Fisher-Yates-Shuffle", function () {
+
+  
   async function registerFive() {
     const deployment = await deployLottery()
     const { lottery, tree, params, anna, bruno, claudia, diego, elodie } = deployment;
@@ -260,49 +262,76 @@ describe("FairLottery: Fisher-Yates-Shuffle", function () {
     expect (waiter.length).to.be.equal(0);
   });
 
-  TODO:
-  it("Correct amount should be refunded after place was granted", async function () {
-    const {lottery, params} = await registerFive();
-    await lottery.draw();
+  describe("FairLottery: Decline Places", async function() {
+    let lottery: any;
+    let params: any;
+    let decliner: any;
+    let firstWaiter: any;
+    let winnersStart: string[];
+    let waiterStart: string[];
+    let expectedRefund: bigint;
+    let tree: any;
+    let tx: any;
 
-    const winnersStart = await lottery.getWinners();
-    const decliner = await ethers.getSigner(winnersStart[0]);
-    const waiterStart = await lottery.getWaitingList();
-    const firstWaiter = await ethers.getSigner(waiterStart[0]);
+    // Calling before each it
+    beforeEach(async function () {
+      ({ lottery, tree, params } = await registerFive());
+      await lottery.draw();
 
-    const expectedRefund = (params.deposit * BigInt(params.refundPercentage)) / 100n;
-    const pDecliner = await lottery.connect(decliner).refundAfterPlaceGranted();
+      winnersStart = await lottery.getWinners();
+      decliner = await ethers.getSigner(winnersStart[0]);
+      waiterStart = await lottery.getWaitingList();
+      firstWaiter = await ethers.getSigner(waiterStart[0]);
 
-    await expect(pDecliner).to.be.changeEtherBalance(ethers, decliner, expectedRefund);
+      expectedRefund = (params.deposit * BigInt(params.refundPercentage)) / 100n;
+      tx = await lottery.connect(decliner).refundAfterPlaceGranted();
+    });
 
-    const winnersEnd = await lottery.getWinners();
-    
-    // Check if winners list is updated
-    expect (winnersEnd.length).to.be.equal(params.availablePlaces);
-    expect (winnersEnd).not.to.include(decliner.address);
-    expect (winnersEnd).to.include(firstWaiter.address);
+    it("Correct amount should be refunded after place was granted", async function () {
+      await expect(tx).to.be.changeEtherBalance(ethers, decliner, expectedRefund);
+    });
 
-    // Check if parameters of participants were updated
-    expect (await lottery.checkIfWon(decliner.address)).to.equal(false);
-    expect (await lottery.checkIfWaitingList(firstWaiter.address)).to.equal(false);
-    expect (await lottery.checkIfWon(firstWaiter.address)).to.equal(true);
-  });
+    it("Check if winners list is updated", async function () {
+      const winnersEnd = await lottery.getWinners();
+      expect (winnersEnd.length).to.be.equal(params.availablePlaces);
+      expect (winnersEnd).not.to.include(decliner.address);
+      expect (winnersEnd).to.include(firstWaiter.address);
+    });
 
-  it("CheckIfWon should include the winner", async function () {
-    const {lottery} = await registerFive();
-    await lottery.draw();
+    it("Check if refunded Winner can't be refunded again", async function () {
+      await expect (lottery.connect(decliner).refundAfterPlaceGranted()).to.be.revertedWithCustomError(lottery, "NotWinner");
+    });
 
-    const winners = await lottery.getWinners();
-    for (const w of winners) {
-      expect (await lottery.checkIfWon(w)).to.be.equal(true);
-    }
-  });
+    it("Check if refunded Winner can't registrate again", async function () {
+      const proof = tree.getProof([decliner.address])
 
-  it("Check if won is not available before the draw", async function () {
-    const {lottery, tree, elodie, params} = await deployLottery();
-    await registerAs(lottery, tree, elodie, params.deposit);
+      await expect (
+        lottery.connect(decliner).register(proof, {value: params.deposit}))
+        .to.be.revertedWithCustomError(lottery, "WrongPhase");
+    });
 
-    await expect(lottery.checkIfWon(elodie.address)).to.be.revertedWithCustomError(lottery, "NotDrawnYet")
+    it("Check if parameters of participants were updated", async function () {
+      expect (await lottery.checkIfWon(decliner.address)).to.equal(false);
+      expect (await lottery.checkIfWaitingList(firstWaiter.address)).to.equal(false);
+      expect (await lottery.checkIfWon(firstWaiter.address)).to.equal(true);
+    });
+
+    it("CheckIfWon should include the winner", async function () {
+      const {lottery} = await registerFive();
+      await lottery.draw();
+
+      const winners = await lottery.getWinners();
+      for (const w of winners) {
+        expect (await lottery.checkIfWon(w)).to.be.equal(true);
+      }
+    });
+
+    it("Check if won is not available before the draw", async function () {
+      const {lottery, tree, elodie, params} = await deployLottery();
+      await registerAs(lottery, tree, elodie, params.deposit);
+
+      await expect(lottery.checkIfWon(elodie.address)).to.be.revertedWithCustomError(lottery, "NotDrawnYet")
+    });
   });
 });
 
