@@ -161,20 +161,21 @@ describe("FairLottery: Participation list", function () {
   });
 });
 
+
 // Testing if draw function works
 describe("FairLottery: Fisher-Yates-Shuffle", function () {
   async function registerFive() {
     const deployment = await deployLottery()
     const { lottery, tree, params, anna, bruno, claudia, diego, elodie } = deployment;
-      await registerAs(lottery, tree, anna, params.deposit);
-      await registerAs(lottery, tree, bruno, params.deposit);
-      await registerAs(lottery, tree, claudia, params.deposit);
-      await registerAs(lottery, tree, diego, params.deposit);
-      await registerAs(lottery, tree, elodie, params.deposit);
+    await registerAs(lottery, tree, anna, params.deposit);
+    await registerAs(lottery, tree, bruno, params.deposit);
+    await registerAs(lottery, tree, claudia, params.deposit);
+    await registerAs(lottery, tree, diego, params.deposit);
+    await registerAs(lottery, tree, elodie, params.deposit);
 
-      await networkHelpers.time.increaseTo(params.revealEnd);
+    await networkHelpers.time.increaseTo(params.revealEnd);
 
-      return deployment;
+    return deployment;
   }
   it("Correct Amount of winners are drawn", async function () {
     const {lottery, params} = await registerFive();
@@ -188,11 +189,8 @@ describe("FairLottery: Fisher-Yates-Shuffle", function () {
   });
 
   it("Nobody can be picked twice", async function() {
-    console.log("1 deploy");
     const { lottery } = await registerFive();
-    console.log("2 registered, time moved");
     await lottery.draw();
-    console.log("3 drawn");
 
     const winners = await lottery.getWinners();
     const waiter = await lottery.getWaitingList();
@@ -201,4 +199,41 @@ describe("FairLottery: Fisher-Yates-Shuffle", function () {
     expect(new Set(all).size).to.equal(all.length); // Checks if there are only unique Addresses 
   });
 
+    it("No waiting list if there are not enough participants", async function() {
+    const { lottery, tree, params, anna, bruno} = await deployLottery();
+    await registerAs(lottery, tree, anna, params.deposit);
+    await registerAs(lottery, tree, bruno, params.deposit);
+
+    await networkHelpers.time.increaseTo(params.revealEnd);
+
+    await lottery.draw();
+    
+    const winner = await lottery.getWinners();
+    const waiter = await lottery.getWaitingList();
+
+    expect (winner.length).to.be.equal(2);
+    expect (waiter.length).to.be.equal(0);
+  });
+
+  it("Rejects a second draw", async function() {
+    const { lottery, tree, params, elodie} = await deployLottery();
+    await registerAs(lottery, tree, elodie, params.deposit);
+
+    await networkHelpers.time.increaseTo(params.revealEnd);
+    await lottery.draw();
+    await expect (lottery.draw()).to.be.revertedWithCustomError(lottery, "WrongPhase");
+  });
+
+  it("No winner if there is no participant", async function() {
+    const { lottery, params} = await deployLottery();
+
+    await networkHelpers.time.increaseTo(params.revealEnd);
+    await lottery.draw();
+
+    const winner = await lottery.getWinners();
+    const waiter = await lottery.getWaitingList();
+
+    expect (winner.length).to.be.equal(0);
+    expect (waiter.length).to.be.equal(0);
+  });
 });
