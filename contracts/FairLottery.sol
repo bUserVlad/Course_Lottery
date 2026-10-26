@@ -16,6 +16,7 @@ contract FairLottery {
     error RefundFailed();
     error NotOnWaitingList();
     error InvalidRefundPercentage();
+    error NotDrawnYet();
 
     // Phases each lottery can have
     enum Phase {Registration, Commit, Reveal, ReadyToDraw, Drawn, Finished}
@@ -132,7 +133,7 @@ contract FairLottery {
         emit Unregistered(msg.sender);
     }
 
-        // Take registration back before the end of the registration phase and get 100% refunded.
+    // Take registration back before the end of the registration phase and get 100% refunded.
     function refundAfterPlaceGranted() external inPhase(Phase.Drawn) {
         Participant storage p = lottery.participants[msg.sender];
         if (!p.won) revert NotRegistered();
@@ -248,6 +249,17 @@ contract FairLottery {
       return lottery.waitingList;
     }
 
+    // Check if a selected participant has won
+    function checkIfWon(address participant) external view returns (bool) {
+        if(currentPhase() < Phase.Drawn) revert NotDrawnYet();
+        return lottery.participants[participant].won;
+    }
+
+    // Check if a selected participant is on the waiting list
+    function checkIfWaitingList(address participant) external view returns (bool) {
+        if(currentPhase() < Phase.Drawn) revert NotDrawnYet();
+        return lottery.participants[participant].waiting;
+    }
 
     // https://github.com/0xHuzaifa/Simple-Lottery/blob/main/Lottery.sol
     // Generating random numbers unsave version
