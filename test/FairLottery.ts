@@ -260,6 +260,34 @@ describe("FairLottery: Fisher-Yates-Shuffle", function () {
     expect (waiter.length).to.be.equal(0);
   });
 
+  TODO:
+  it("Correct amount should be refunded after place was granted", async function () {
+    const {lottery, params} = await registerFive();
+    await lottery.draw();
+
+    const winnersStart = await lottery.getWinners();
+    const decliner = await ethers.getSigner(winnersStart[0]);
+    const waiterStart = await lottery.getWaitingList();
+    const firstWaiter = await ethers.getSigner(waiterStart[0]);
+
+    const expectedRefund = (params.deposit * BigInt(params.refundPercentage)) / 100n;
+    const pDecliner = await lottery.connect(decliner).refundAfterPlaceGranted();
+
+    await expect(pDecliner).to.be.changeEtherBalance(ethers, decliner, expectedRefund);
+
+    const winnersEnd = await lottery.getWinners();
+    
+    // Check if winners list is updated
+    expect (winnersEnd.length).to.be.equal(params.availablePlaces);
+    expect (winnersEnd).not.to.include(decliner.address);
+    expect (winnersEnd).to.include(firstWaiter.address);
+
+    // Check if parameters of participants were updated
+    expect (await lottery.checkIfWon(decliner.address)).to.equal(false);
+    expect (await lottery.checkIfWaitingList(firstWaiter.address)).to.equal(false);
+    expect (await lottery.checkIfWon(firstWaiter.address)).to.equal(true);
+  });
+
   it("CheckIfWon should include the winner", async function () {
     const {lottery} = await registerFive();
     await lottery.draw();
