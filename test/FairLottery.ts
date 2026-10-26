@@ -259,5 +259,22 @@ describe("FairLottery: Fisher-Yates-Shuffle", function () {
     expect (winner.length).to.be.equal(0);
     expect (waiter.length).to.be.equal(0);
   });
+
+  it("CheckIfWon should include the winner", async function () {
+    const {lottery} = await registerFive();
+    await lottery.draw();
+
+    const winners = await lottery.getWinners();
+    for (const w of winners) {
+      expect (await lottery.checkIfWon(w)).to.be.equal(true);
+    }
+  });
+
+  it("Check if won is not available before the draw", async function () {
+    const {lottery, tree, elodie, params} = await deployLottery();
+    await registerAs(lottery, tree, elodie, params.deposit);
+
+    await expect(lottery.checkIfWon(elodie.address)).to.be.revertedWithCustomError(lottery, "NotDrawnYet")
+  });
 });
 
