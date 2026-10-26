@@ -17,6 +17,11 @@ contract FairLottery {
     error NotOnWaitingList();
     error InvalidRefundPercentage();
     error NotDrawnYet();
+    error UseRefundAfterPlaceGranted();
+    error UseLeaveWaitingList();
+    error AlreadyRefunded();
+    error NotWinner();
+
 
     // Phases each lottery can have
     enum Phase {Registration, Commit, Reveal, ReadyToDraw, Drawn, Finished}
@@ -26,6 +31,7 @@ contract FairLottery {
     event LeftWaitingList(address indexed participant);
     event Winner(address indexed participant);
     event Waiter(address indexed participant);
+    event PlaceDeclined(address indexed participant);
 
 
     // Variables for the participants
@@ -116,8 +122,13 @@ contract FairLottery {
 
     // Take registration back before the end of the registration phase and get 100% refunded.
     function unregister() external inPhase(Phase.Registration) {
+        _unregister(msg.sender);
+    }
+
+    // Private unregister function of the external unregister and claimDeposit function
+    function _unregister(address who) private {
         // require(block.timestamp < lottery.registrationEnd, "Registration closed. Can't unregistrate.");
-        Participant storage p = lottery.participants[msg.sender];
+        Participant storage p = lottery.participants[who];
         if (!p.registered) revert NotRegistered();
         
         // Erasing participant from participant list and replacing his spot with the last person.
@@ -128,15 +139,15 @@ contract FairLottery {
         lottery.participantList.pop();
         p.registered = false;
         
-        refundDeposit(msg.sender, lottery.deposit);
+        refundDeposit(who, lottery.deposit);
 
-        emit Unregistered(msg.sender);
+        emit Unregistered(who);
     }
 
     // Take registration back before the end of the registration phase and get 100% refunded.
     function refundAfterPlaceGranted() external inPhase(Phase.Drawn) {
         Participant storage p = lottery.participants[msg.sender];
-        if (!p.won) revert NotRegistered();
+        if (!p.won) revert NotWinner();
         
         // Erasing participant from winners list and replacing his spot with first on the waiting list.
         uint256 pWinnersIndex = p.winnersIndex;
@@ -151,26 +162,36 @@ contract FairLottery {
         } else {
             address lastIndex = lottery.winners[lottery.winners.length - 1];
             lottery.participants[lastIndex].winnersIndex = pWinnersIndex;
+            lottery.winners[pWinnersIndex] = lastIndex;
             lottery.winners.pop();
         }
         lottery.participants[msg.sender].won = false;
+        lottery.participants[msg.sender].registered = false;
         uint256 refund = lottery.deposit * lottery.refundPercentage / 100;
-        p.depositRefunded = true;
 
         refundDeposit(msg.sender, refund);
+
+        emit PlaceDeclined(msg.sender);
     }
 
     // Leaving the waiting list and getting the full amount back
     function leaveWaitingList() external inPhase(Phase.Drawn) {
         Participant storage p = lottery.participants[msg.sender];
-        if (!p.waiting) revert NotOnWaitingList();
-    
+        if (!p.waiting) revert NotOnWaitingList();    
         p.waiting = false;
-        p.depositRefunded = true;
 
         refundDeposit(msg.sender, lottery.deposit);
 
         emit LeftWaitingList(msg.sender);
+    }
+
+
+    function claimDeposit() external {
+        Participant storage p = lottery.participants[msg.sender];
+        if (p.won) revert UseRefundAfterPlaceGranted();
+        if (p.waiting) revert UseLeaveWaitingList();
+
+        _unregister(msg.sender);
     }
 
 
@@ -189,8 +210,12 @@ contract FairLottery {
 
     // Refunding deposit to the corresponding address
     function refundDeposit(address receivingAddress, uint256 amount) private {
+        Participant storage p = lottery.participants[receivingAddress];
+        if (p.depositRefunded) revert AlreadyRefunded();
+        p.depositRefunded = true;
+        p.registered = false;
         lottery.moneyDeposited -= amount;
-
+        
         (bool ok, ) = payable(receivingAddress).call{value: amount}("");
         if (!ok) revert RefundFailed();
     }
@@ -232,6 +257,8 @@ contract FairLottery {
             }
         }
     }
+
+
 
 
     // Overview of the participant list
