@@ -127,6 +127,28 @@ describe("FairLottery: Unregister", function () {
             lottery.connect(anna).register(tree.getProof([anna.address]), {value: params.deposit})
             ).to.emit(lottery, "Registered");
     });
+
+    it("Can't claim the deposit twice", async function () {
+      const {lottery, tree, params, elodie} = await deployLottery();
+      await registerAs(lottery, tree, elodie, params.deposit);
+      await lottery.connect(elodie).claimDeposit();
+      await expect (lottery.connect(elodie).claimDeposit()).to.be.revertedWithCustomError(lottery, "DepositAlreadyRefunded()");
+    });
+    
+    it("Should be able to register again after claiming Deposit", async function () {
+      const {lottery, tree, params, elodie} = await deployLottery();
+      await registerAs(lottery, tree, elodie, params.deposit);
+      await lottery.connect(elodie).claimDeposit();
+      await registerAs(lottery, tree, elodie, params.deposit);
+    });
+
+    it("Should be able to register and claiming Deposit twice", async function () {
+      const {lottery, tree, params, elodie} = await deployLottery();
+      await registerAs(lottery, tree, elodie, params.deposit);
+      await lottery.connect(elodie).claimDeposit();
+      await registerAs(lottery, tree, elodie, params.deposit);
+      await lottery.connect(elodie).claimDeposit();
+    });
 });
 
 // Testing if view function of the participations list works
@@ -237,3 +259,4 @@ describe("FairLottery: Fisher-Yates-Shuffle", function () {
     expect (waiter.length).to.be.equal(0);
   });
 });
+

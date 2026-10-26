@@ -21,6 +21,7 @@ contract FairLottery {
     error UseLeaveWaitingList();
     error AlreadyRefunded();
     error NotWinner();
+    error DepositAlreadyRefunded();
 
 
     // Phases each lottery can have
@@ -106,14 +107,16 @@ contract FairLottery {
 
     function register(bytes32[] calldata proof) external payable inPhase(Phase.Registration){
         // if (block.timestamp > lottery.registrationEnd) revert RegistrationClosed(); 
-        if (lottery.participants[msg.sender].registered) revert AlreadyRegistered();
+        Participant storage p = lottery.participants[msg.sender];
+        if (p.registered) revert AlreadyRegistered();
         if (msg.value != lottery.deposit) revert WrongAmount();
 
         bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(msg.sender))));
         if (!MerkleProof.verify(proof, lottery.merkleRoot, leaf)) revert NotEligible();
 
-        lottery.participants[msg.sender].registered = true;
-        lottery.participants[msg.sender].listIndex = lottery.participantList.length;
+        p.depositRefunded = false;
+        p.registered = true;
+        p.listIndex = lottery.participantList.length;
         lottery.participantList.push(msg.sender);
         lottery.moneyDeposited += msg.value;
 
@@ -190,6 +193,7 @@ contract FairLottery {
         Participant storage p = lottery.participants[msg.sender];
         if (p.won) revert UseRefundAfterPlaceGranted();
         if (p.waiting) revert UseLeaveWaitingList();
+        if (p.depositRefunded) revert DepositAlreadyRefunded();
 
         _unregister(msg.sender);
     }
