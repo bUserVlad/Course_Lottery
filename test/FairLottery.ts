@@ -127,7 +127,8 @@ describe("FairLottery: Unregister", function () {
             lottery.connect(anna).register(tree.getProof([anna.address]), {value: params.deposit})
             ).to.emit(lottery, "Registered");
     });
-
+  });
+  describe("FairLottery: Deposit claim", function () {
     it("Can't claim the deposit twice", async function () {
       const {lottery, tree, params, elodie} = await deployLottery();
       await registerAs(lottery, tree, elodie, params.deposit);
