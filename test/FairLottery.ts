@@ -187,15 +187,18 @@ describe("FairLottery: Fisher-Yates-Shuffle", function () {
     expect(waiter.length).to.equal(params.availablePlaces);
   });
 
-  it("Nobody can be picked twice"), async function() {
-    const {lottery, params} = await registerFive();
+  it("Nobody can be picked twice", async function() {
+    console.log("1 deploy");
+    const { lottery } = await registerFive();
+    console.log("2 registered, time moved");
     await lottery.draw();
+    console.log("3 drawn");
 
     const winners = await lottery.getWinners();
     const waiter = await lottery.getWaitingList();
 
-    expect(new Set(winners).size).to.equal(winners.length); // Checks if there are only unique Addresses 
-    expect(new Set(waiter).size).to.equal(waiter.length); // Checks if there are only unique Addresses 
-  }
+    const all = [...winners, ...waiter]; // Combining both arrays
+    expect(new Set(all).size).to.equal(all.length); // Checks if there are only unique Addresses 
+  });
 
 });
