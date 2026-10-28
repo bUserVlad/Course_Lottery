@@ -298,6 +298,24 @@ describe("FairLottery: Fisher-Yates-Shuffle", function () {
       expect (winnersEnd).to.include(firstWaiter.address);
     });
 
+    it("Check if the second winners place heritage is correct", async function() {
+      const winnersNow = await lottery.getWinners();
+      const declinerSecond = await ethers.getSigner(winnersNow[1]);
+      const secondWaiter = waiterStart[1];
+
+      const txSecond = await lottery.connect(declinerSecond).refundAfterPlaceGranted();
+      await expect(txSecond).to.be.changeEtherBalance(ethers, declinerSecond, expectedRefund);
+
+      const winnersEnd = await lottery.getWinners();
+      expect (winnersEnd.length).to.be.equal(params.availablePlaces);
+      expect (winnersEnd).to.include(secondWaiter);
+      expect (winnersEnd).not.to.include(declinerSecond.address);
+      expect (secondWaiter).to.not.equal(declinerSecond.address);
+
+      expect (await lottery.checkIfWon(secondWaiter)).to.be.equal(true);
+      expect (await lottery.checkIfWaitingList(secondWaiter)).to.be.equal(false);
+    });
+
     it("Check if refunded Winner can't be refunded again", async function () {
       await expect (lottery.connect(decliner).refundAfterPlaceGranted()).to.be.revertedWithCustomError(lottery, "NotWinner");
     });
