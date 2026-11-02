@@ -378,5 +378,28 @@ describe("FairLottery: Commit function", function () {
     expect (hashFromLottery).to.equal(hashLocal);
   })
 
+  it("Registered participant can commit", async function() {
+    const {lottery, tree, params, bruno} = await deployLottery();
+    await registerAs(lottery, tree, bruno, params.deposit);
+    await networkHelpers.time.increaseTo(params.registrationEnd + 1);
+
+    const hash = await lottery.generateCommitHash(NUMBER, SECRET);
+
+    await expect (lottery.connect(bruno).commit(hash))
+      .to.emit(lottery, "Commited")
+      .withArgs(bruno.address)
+  });
+
+  it("Rejecting a second commit", async function() {
+    const {lottery, tree, params, bruno} = await deployLottery();
+    await registerAs(lottery, tree, bruno, params.deposit);
+    await networkHelpers.time.increaseTo(params.registrationEnd + 1);
+
+    const hash = await lottery.generateCommitHash(NUMBER, SECRET);
+    await lottery.connect(bruno).commit(hash);
+
+    await expect(lottery.connect(bruno).commit(hash))
+    .to.be.revertedWithCustomError(lottery, "AlreadyCommitted")
+  });
 });
 
