@@ -386,7 +386,7 @@ describe("FairLottery: Commit function", function () {
     const hash = await lottery.generateCommitHash(NUMBER, SECRET);
 
     await expect (lottery.connect(bruno).commit(hash))
-      .to.emit(lottery, "Commited")
+      .to.emit(lottery, "Committed")
       .withArgs(bruno.address)
   });
 
@@ -400,6 +400,47 @@ describe("FairLottery: Commit function", function () {
 
     await expect(lottery.connect(bruno).commit(hash))
     .to.be.revertedWithCustomError(lottery, "AlreadyCommitted")
+  });
+
+  it("Reject commit of unregistrated participants", async function() {
+    const {lottery, params, globi} = await deployLottery();
+    
+    await networkHelpers.time.increaseTo(params.registrationEnd + 1);
+    const hash = await lottery.generateCommitHash(NUMBER, SECRET);
+
+    await expect(lottery.connect(globi).commit(hash))
+    .to.be.revertedWithCustomError(lottery, "NotRegistered")
+  });
+
+  it("Rejects an empty commit", async function() {
+    const {lottery, tree, params, bruno} = await deployLottery();
+    await registerAs(lottery, tree, bruno, params.deposit);
+    await networkHelpers.time.increaseTo(params.registrationEnd + 1);
+
+    await expect(lottery.connect(bruno).commit(ethers.ZeroHash))
+    .to.be.revertedWithCustomError(lottery, "EmptyHash")
+  });
+
+  it("Rejects a commit during registration phase", async function() {
+    const {lottery, tree, params, bruno} = await deployLottery();
+    await registerAs(lottery, tree, bruno, params.deposit);
+
+    const hash = await lottery.generateCommitHash(NUMBER, SECRET);
+    
+    await expect(lottery.connect(bruno).commit(hash))
+    .to.be.revertedWithCustomError(lottery, "WrongPhase")
+  });
+
+  it("Rejects a commit after commit phase", async function() {
+    const {lottery, tree, params, bruno} = await deployLottery();
+    await registerAs(lottery, tree, bruno, params.deposit);
+    await networkHelpers.time.increaseTo(params.commitEnd);
+
+
+    const hash = await lottery.generateCommitHash(NUMBER, SECRET);
+    
+    await expect(lottery.connect(bruno).commit(hash))
+    .to.be.revertedWithCustomError(lottery, "WrongPhase")
   });
 });
 
