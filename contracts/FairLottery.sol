@@ -21,6 +21,8 @@ contract FairLottery {
     error UseLeaveWaitingList();
     error AlreadyRefunded();
     error NotWinner();
+    error AlreadyCommited();
+    error EmptyHash();
 
 
     // Phases each lottery can have
@@ -32,6 +34,7 @@ contract FairLottery {
     event Winner(address indexed participant);
     event Waiter(address indexed participant);
     event PlaceDeclined(address indexed participant);
+    event Commited(address indexed participant);
 
 
     // Variables for the participants
@@ -68,6 +71,7 @@ contract FairLottery {
     }
 
     Lottery private lottery;
+
 
     constructor(
         bytes32 merkleRoot_,
@@ -223,11 +227,22 @@ contract FairLottery {
         if (!ok) revert RefundFailed();
     }
 
-    /*
-    function comit(bytes32 _secret) external {
+    // As an inspiration:
+    // https://github.com/cifunibas/Smart-Contracts-DeFi/blob/main/contracts/sealedBidAuctionB.sol
+    function commit(bytes32 commitHash) external inPhase(Phase.Commit) {
+        Participant storage p = lottery.participants[msg.sender];
+        if (!p.registered) revert NotRegistered();
+        if (p.commitHash != bytes32(0)) revert AlreadyCommited();
+        if (commitHash == bytes32(0)) revert EmptyHash();
 
+        p.commitHash = commitHash;
+
+        emit Commited (msg.sender);
     }
-    */
+
+    function generateSealedNumber(uint _number, string memory _secret) public pure returns (bytes32 sealedBid) {
+        sealedBid = keccak256(abi.encodePacked(_number, _secret));
+    }
 
     function draw() external inPhase(Phase.ReadyToDraw){
         drawWinnersShuffleArray();

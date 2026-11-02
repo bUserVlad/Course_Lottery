@@ -155,8 +155,7 @@ describe("FairLottery: Unregister", function () {
       await registerAs(lottery, tree, elodie, params.deposit);
       const tx1 = lottery.connect(elodie).claimDeposit();
         await expect(tx1).to.changeEtherBalance(ethers, elodie, params.deposit)
-
-
+        
       await registerAs(lottery, tree, elodie, params.deposit);
       const tx2 = lottery.connect(elodie).claimDeposit();
         await expect(tx2).to.changeEtherBalance(ethers, elodie, params.deposit)
