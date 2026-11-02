@@ -1,7 +1,7 @@
 import { expect } from "chai";
 import { network } from "hardhat";
 import { StandardMerkleTree } from "@openzeppelin/merkle-tree";
-import { Network } from "ethers";
+import { keccak256, Network } from "ethers";
 
 const { ethers, networkHelpers } = await network.create();
 
@@ -155,7 +155,7 @@ describe("FairLottery: Unregister", function () {
       await registerAs(lottery, tree, elodie, params.deposit);
       const tx1 = lottery.connect(elodie).claimDeposit();
         await expect(tx1).to.changeEtherBalance(ethers, elodie, params.deposit)
-        
+
       await registerAs(lottery, tree, elodie, params.deposit);
       const tx2 = lottery.connect(elodie).claimDeposit();
         await expect(tx2).to.changeEtherBalance(ethers, elodie, params.deposit)
@@ -362,5 +362,21 @@ describe("FairLottery: Fisher-Yates-Shuffle", function () {
       await expect(lottery.checkIfWon(elodie.address)).to.be.revertedWithCustomError(lottery, "NotDrawnYet")
     });
   });
+});
+  // Testing if draw function works
+describe("FairLottery: Commit function", function () {
+
+  // Commit values
+  const NUMBER = 88888;
+  const SECRET = "The best secret in the world!";
+
+  it("Hash function matches", async function () {
+    const { lottery } = await deployLottery();
+    const hashFromLottery = await lottery.generateCommitHash(NUMBER, SECRET);
+    const hashLocal = ethers.solidityPackedKeccak256(["uint256", "string"], [NUMBER, SECRET]);
+
+    expect (hashFromLottery).to.equal(hashLocal);
+  })
+
 });
 

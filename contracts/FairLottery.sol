@@ -21,7 +21,7 @@ contract FairLottery {
     error UseLeaveWaitingList();
     error AlreadyRefunded();
     error NotWinner();
-    error AlreadyCommited();
+    error AlreadyCommitted();
     error EmptyHash();
 
 
@@ -34,7 +34,7 @@ contract FairLottery {
     event Winner(address indexed participant);
     event Waiter(address indexed participant);
     event PlaceDeclined(address indexed participant);
-    event Commited(address indexed participant);
+    event Committed(address indexed participant);
 
 
     // Variables for the participants
@@ -232,16 +232,17 @@ contract FairLottery {
     function commit(bytes32 commitHash) external inPhase(Phase.Commit) {
         Participant storage p = lottery.participants[msg.sender];
         if (!p.registered) revert NotRegistered();
-        if (p.commitHash != bytes32(0)) revert AlreadyCommited();
+        if (p.commitHash != bytes32(0)) revert AlreadyCommitted();
         if (commitHash == bytes32(0)) revert EmptyHash();
 
         p.commitHash = commitHash;
 
-        emit Commited (msg.sender);
+        emit Committed (msg.sender);
     }
 
-    function generateSealedNumber(uint _number, string memory _secret) public pure returns (bytes32 sealedBid) {
-        sealedBid = keccak256(abi.encodePacked(_number, _secret));
+    // https://github.com/cifunibas/Smart-Contracts-DeFi/blob/main/contracts/sealedBidAuctionB.sol
+    function generateCommitHash(uint _number, string memory _secret) public pure returns (bytes32 sealedHash) {
+        sealedHash = keccak256(abi.encodePacked(_number, _secret));
     }
 
     function draw() external inPhase(Phase.ReadyToDraw){
