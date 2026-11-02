@@ -21,7 +21,6 @@ contract FairLottery {
     error UseLeaveWaitingList();
     error AlreadyRefunded();
     error NotWinner();
-    error DepositAlreadyRefunded();
 
 
     // Phases each lottery can have
@@ -193,7 +192,7 @@ contract FairLottery {
         Participant storage p = lottery.participants[msg.sender];
         if (p.won) revert UseRefundAfterPlaceGranted();
         if (p.waiting) revert UseLeaveWaitingList();
-        if (p.depositRefunded) revert DepositAlreadyRefunded();
+        if (p.depositRefunded) revert AlreadyRefunded();
 
         _unregister(msg.sender);
     }
@@ -223,6 +222,12 @@ contract FairLottery {
         (bool ok, ) = payable(receivingAddress).call{value: amount}("");
         if (!ok) revert RefundFailed();
     }
+
+    /*
+    function comit(bytes32 _secret) external {
+
+    }
+    */
 
     function draw() external inPhase(Phase.ReadyToDraw){
         drawWinnersShuffleArray();
@@ -291,6 +296,14 @@ contract FairLottery {
         if(currentPhase() < Phase.Drawn) revert NotDrawnYet();
         return lottery.participants[participant].waiting;
     }
+
+
+    //TODO
+    /*
+    function refundWinnersAfterDeadline() external payable {
+    
+    }
+    */
 
     // https://github.com/0xHuzaifa/Simple-Lottery/blob/main/Lottery.sol
     // Generating random numbers unsave version

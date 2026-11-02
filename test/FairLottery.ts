@@ -133,22 +133,34 @@ describe("FairLottery: Unregister", function () {
       const {lottery, tree, params, elodie} = await deployLottery();
       await registerAs(lottery, tree, elodie, params.deposit);
       await lottery.connect(elodie).claimDeposit();
-      await expect (lottery.connect(elodie).claimDeposit()).to.be.revertedWithCustomError(lottery, "DepositAlreadyRefunded()");
+      await expect (lottery.connect(elodie).claimDeposit()).to.be.revertedWithCustomError(lottery, "AlreadyRefunded()");
     });
     
     it("Should be able to register again after claiming Deposit", async function () {
       const {lottery, tree, params, elodie} = await deployLottery();
       await registerAs(lottery, tree, elodie, params.deposit);
       await lottery.connect(elodie).claimDeposit();
-      await registerAs(lottery, tree, elodie, params.deposit);
+
+      await expect (await lottery.connect(elodie).register(tree.getProof([elodie.address]), {value: params.deposit})
+      ).to.emit(lottery, "Registered").withArgs(elodie.address);
+    
+      const listNew = await lottery.getParticipants();
+      expect (listNew.length).to.equal(1);
+      expect (listNew).to.include(elodie.address);
     });
 
     it("Should be able to register and claiming Deposit twice", async function () {
       const {lottery, tree, params, elodie} = await deployLottery();
+      
       await registerAs(lottery, tree, elodie, params.deposit);
-      await lottery.connect(elodie).claimDeposit();
+      const tx1 = lottery.connect(elodie).claimDeposit();
+        await expect(tx1).to.changeEtherBalance(ethers, elodie, params.deposit)
+
+
       await registerAs(lottery, tree, elodie, params.deposit);
-      await lottery.connect(elodie).claimDeposit();
+      const tx2 = lottery.connect(elodie).claimDeposit();
+        await expect(tx2).to.changeEtherBalance(ethers, elodie, params.deposit)
+
     });
 });
 
