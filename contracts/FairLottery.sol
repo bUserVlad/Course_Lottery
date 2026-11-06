@@ -23,6 +23,9 @@ contract FairLottery {
     error NotWinner();
     error AlreadyCommitted();
     error EmptyHash();
+    error NotCommitted();
+    error AlreadyRevealed();
+    error WrongInputs();
 
 
     // Phases each lottery can have
@@ -35,7 +38,7 @@ contract FairLottery {
     event Waiter(address indexed participant);
     event PlaceDeclined(address indexed participant);
     event Committed(address indexed participant);
-
+    event Revealed(address indexed participant);
 
     // Variables for the participants
     struct Participant {
@@ -43,6 +46,7 @@ contract FairLottery {
         bool won;
         bool waiting;
         bytes32 commitHash;
+        bool committed;
         bool revealed;
         bool depositRefunded;
         uint256 listIndex;
@@ -236,13 +240,27 @@ contract FairLottery {
         if (commitHash == bytes32(0)) revert EmptyHash();
 
         p.commitHash = commitHash;
+        p.committed = true;
 
         emit Committed (msg.sender);
     }
 
     // https://github.com/cifunibas/Smart-Contracts-DeFi/blob/main/contracts/sealedBidAuctionB.sol
-    function generateCommitHash(uint _number, string memory _secret) public pure returns (bytes32 sealedHash) {
-        sealedHash = keccak256(abi.encodePacked(_number, _secret));
+    function generateCommitHash(address _who, uint _number, string memory _secret) public pure returns (bytes32 sealedHash) {
+        sealedHash = keccak256(abi.encodePacked(_who, _number, _secret));
+    }
+
+    // Not everyone has to reveal
+    function reveal(uint256 number, string  memory secret) public inPhase(Phase.Reveal){
+        Participant storage p = lottery.participants[msg.sender];
+        if (!p.registered) revert NotRegistered();
+        if (!p.committed) revert NotCommitted();
+        if (p.revealed) revert AlreadyRevealed();
+        if (p.commitHash != generateCommitHash(msg.sender, number, secret)) revert WrongInputs();
+        // to prevent that someone could bring the seed to the limit with type(uint256).max
+        p.revealed = true;
+        lottery.seed = keccak256(abi.encode(lottery.seed, number));
+        emit Revealed(msg.sender);
     }
 
     function draw() external inPhase(Phase.ReadyToDraw){

@@ -371,9 +371,9 @@ describe("FairLottery: Commit function", function () {
   const SECRET = "The best secret in the world!";
 
   it("Hash function matches", async function () {
-    const { lottery } = await deployLottery();
-    const hashFromLottery = await lottery.generateCommitHash(NUMBER, SECRET);
-    const hashLocal = ethers.solidityPackedKeccak256(["uint256", "string"], [NUMBER, SECRET]);
+    const {lottery, bruno} = await deployLottery();
+    const hashFromLottery = await lottery.generateCommitHash(bruno.address, NUMBER, SECRET);
+    const hashLocal = ethers.solidityPackedKeccak256(["address", "uint256", "string"], [bruno.address, NUMBER, SECRET]);
 
     expect (hashFromLottery).to.equal(hashLocal);
   })
@@ -383,7 +383,7 @@ describe("FairLottery: Commit function", function () {
     await registerAs(lottery, tree, bruno, params.deposit);
     await networkHelpers.time.increaseTo(params.registrationEnd + 1);
 
-    const hash = await lottery.generateCommitHash(NUMBER, SECRET);
+    const hash = await lottery.generateCommitHash(bruno.address, NUMBER, SECRET);
 
     await expect (lottery.connect(bruno).commit(hash))
       .to.emit(lottery, "Committed")
@@ -395,7 +395,7 @@ describe("FairLottery: Commit function", function () {
     await registerAs(lottery, tree, bruno, params.deposit);
     await networkHelpers.time.increaseTo(params.registrationEnd + 1);
 
-    const hash = await lottery.generateCommitHash(NUMBER, SECRET);
+    const hash = await lottery.generateCommitHash(bruno.address, NUMBER, SECRET);
     await lottery.connect(bruno).commit(hash);
 
     await expect(lottery.connect(bruno).commit(hash))
@@ -406,7 +406,7 @@ describe("FairLottery: Commit function", function () {
     const {lottery, params, globi} = await deployLottery();
     
     await networkHelpers.time.increaseTo(params.registrationEnd + 1);
-    const hash = await lottery.generateCommitHash(NUMBER, SECRET);
+    const hash = await lottery.generateCommitHash(globi.address, NUMBER, SECRET);
 
     await expect(lottery.connect(globi).commit(hash))
     .to.be.revertedWithCustomError(lottery, "NotRegistered")
@@ -425,7 +425,7 @@ describe("FairLottery: Commit function", function () {
     const {lottery, tree, params, bruno} = await deployLottery();
     await registerAs(lottery, tree, bruno, params.deposit);
 
-    const hash = await lottery.generateCommitHash(NUMBER, SECRET);
+    const hash = await lottery.generateCommitHash(bruno.address, NUMBER, SECRET);
     
     await expect(lottery.connect(bruno).commit(hash))
     .to.be.revertedWithCustomError(lottery, "WrongPhase")
@@ -437,7 +437,7 @@ describe("FairLottery: Commit function", function () {
     await networkHelpers.time.increaseTo(params.commitEnd);
 
 
-    const hash = await lottery.generateCommitHash(NUMBER, SECRET);
+    const hash = await lottery.generateCommitHash(bruno.address, NUMBER, SECRET);
     
     await expect(lottery.connect(bruno).commit(hash))
     .to.be.revertedWithCustomError(lottery, "WrongPhase")
