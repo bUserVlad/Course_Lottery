@@ -22,9 +22,9 @@ async function deployLottery(overrides = {}) {
     deposit: ethers.parseEther("0.0001"),
     refundPercentage: 50, // 50 %
     availablePlaces: 2,
-    registrationEnd: now + 1000, // now + 1_000 seconds
-    commitEnd: now + 2000,
-    revealEnd: now + 3000,
+    registrationMinutes: 10,
+    commitMinutes: 10,
+    revealMinutes: 10,
     ...overrides,
   };
 
@@ -36,10 +36,15 @@ async function deployLottery(overrides = {}) {
     params.deposit,
     params.refundPercentage,
     params.availablePlaces,
-    params.registrationEnd,
-    params.commitEnd,
-    params.revealEnd,
+    params.registrationMinutes,
+    params.commitMinutes,
+    params.revealMinutes,
   ]);
+
+  const [reg, com, rev] = await lottery.getDeadlines();
+  params.registrationEnd = Number(reg);
+  params.commitEnd = Number(com);
+  params.revealEnd = Number(rev);
 
   return { lottery, tree, params, owner, anna, bruno, claudia, diego, elodie, florian, globi};
 }

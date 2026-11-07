@@ -25,6 +25,9 @@ contract FairLottery {
     error EmptyHash();
     error AlreadyRevealed();
     error WrongInputs();
+    error WrongTimeline();
+    error EmptyMerkleRoot();
+    error NoPlaces();
 
 
     // Phases each lottery can have
@@ -80,19 +83,22 @@ contract FairLottery {
         uint256 deposit_,
         uint256 refundPercentage_,
         uint256 availablePlaces_,
-        uint64 registrationEnd_,
-        uint64 commitEnd_,
-        uint64 revealEnd_
+        uint256 registrationMinutes_,
+        uint256 commitMinutes_,
+        uint256 revealMinutes_
     ) { 
         lottery.owner = msg.sender;
+        if (merkleRoot_ == bytes32(0)) revert EmptyMerkleRoot();
         lottery.merkleRoot = merkleRoot_;
         lottery.deposit = deposit_;
         if (refundPercentage_ > 100) revert InvalidRefundPercentage();
         lottery.refundPercentage = refundPercentage_;
+        if (availablePlaces_ == 0) revert NoPlaces();
         lottery.availablePlaces = availablePlaces_;
-        lottery.registrationEnd = registrationEnd_;
-        lottery.commitEnd = commitEnd_;
-        lottery.revealEnd = revealEnd_;
+        if (registrationMinutes_ == 0 || commitMinutes_ == 0 || revealMinutes_ == 0) revert WrongTimeline();
+        lottery.registrationEnd = uint64(block.timestamp + registrationMinutes_ * 1 minutes);
+        lottery.commitEnd = lottery.registrationEnd + uint64(commitMinutes_ * 1 minutes);
+        lottery.revealEnd = lottery.commitEnd + uint64(revealMinutes_ * 1 minutes);
     }
 
     // Check current phase of the lottery
@@ -276,9 +282,8 @@ contract FairLottery {
         uint256 picks = remaining < maxPicks ? remaining : maxPicks; // min(remaining, maxPicks)
         
         // https://speedrunethereum.com/guides/blockchain-randomness-solidity
-        bytes32 randomeAdd = keccak256(abi.encode(block.prevrandao, blockhash(block.number - 1)));
-        lottery.seed = keccak256(abi.encode(lottery.seed, randomeOne));
-        // There remain elements to shuffle
+        bytes32 seedAddOn = keccak256(abi.encode(block.prevrandao, blockhash(block.number - 1)));
+        lottery.seed = keccak256(abi.encode(lottery.seed, seedAddOn));
         for (uint256 i; i < picks; i++) {
             // Pick a remaining element
             uint256 randId = uint256(keccak256(abi.encode(lottery.seed, i))) % remaining; 
@@ -335,7 +340,10 @@ contract FairLottery {
     function getSeed() external view returns (bytes32) {
         return lottery.seed;
     }
-
+    
+    function getDeadlines() external view returns (uint64, uint64, uint64) {
+        return (lottery.registrationEnd, lottery.commitEnd, lottery.revealEnd);
+    }
     //TODO
     /*
     function refundWinnersAfterDeadline() external payable {
