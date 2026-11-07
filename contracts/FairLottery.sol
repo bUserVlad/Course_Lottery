@@ -201,12 +201,14 @@ contract FairLottery {
 
 
     function claimDeposit() external {
+        if (currentPhase() < Phase.Drawn) revert WrongPhase();
         Participant storage p = lottery.participants[msg.sender];
+        if (!p.registered) revert NotRegistered();
         if (p.won) revert UseRefundAfterPlaceGranted();
         if (p.waiting) revert UseLeaveWaitingList();
         if (p.depositRefunded) revert AlreadyRefunded();
 
-        _unregister(msg.sender);
+        refundDeposit(msg.sender, lottery.deposit);
     }
 
 
@@ -340,7 +342,7 @@ contract FairLottery {
     function getSeed() external view returns (bytes32) {
         return lottery.seed;
     }
-    
+
     function getDeadlines() external view returns (uint64, uint64, uint64) {
         return (lottery.registrationEnd, lottery.commitEnd, lottery.revealEnd);
     }
