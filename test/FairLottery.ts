@@ -541,7 +541,7 @@ describe("FairLottery: Reveal function", function () {
       .to.be.revertedWithCustomError(lottery, "AlreadyRevealed");
   });
 
-    it("Rejects reveal if never commited", async function() {
+  it("Rejects reveal if never commited", async function() {
     const deployment = await commitFive();
     const { lottery, params, anna, bruno, claudia, diego, elodie } = deployment;
 
@@ -549,6 +549,28 @@ describe("FairLottery: Reveal function", function () {
 
     await expect (lottery.connect(elodie).reveal(NUMBER, SECRET))
       .to.be.revertedWithCustomError(lottery, "EmptyHash");
+  });
+
+  it("Lottery Seed gets adjusted corectly after two reveals", async function() {
+    const deployment = await commitFive();
+    const { lottery, params, anna, bruno, claudia, diego, elodie } = deployment;
+
+    const hashElodie = await lottery.generateCommitHash(elodie.address, NUMBER, SECRET);
+    await lottery.connect(elodie).commit(hashElodie);
+
+    const hashBruno = await lottery.generateCommitHash(diego.address, 42, SECRET);
+    await lottery.connect(diego).commit(hashBruno);
+
+    await networkHelpers.time.increaseTo(params.commitEnd + 1);
+
+    await lottery.connect(elodie).reveal(NUMBER, SECRET);
+    const seedElodie = await lottery.getSeed();
+    await lottery.connect(diego).reveal(42, SECRET);
+    const seedDiego = await lottery.getSeed();
+
+    expect(seedElodie).to.not.equal(ethers.ZeroHash);
+    expect(seedDiego).to.not.equal(seedElodie);
+
   });
 
 });
