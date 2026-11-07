@@ -276,9 +276,8 @@ contract FairLottery {
         uint256 picks = remaining < maxPicks ? remaining : maxPicks; // min(remaining, maxPicks)
         
         // https://speedrunethereum.com/guides/blockchain-randomness-solidity
-        bytes32 seedAddOn = keccak256(abi.encode(block.prevrandao, msg.sender));
-        lottery.seed = keccak256(abi.encode(lottery.seed, seedAddOn));
-
+        bytes32 randomeAdd = keccak256(abi.encode(block.prevrandao, blockhash(block.number - 1)));
+        lottery.seed = keccak256(abi.encode(lottery.seed, randomeOne));
         // There remain elements to shuffle
         for (uint256 i; i < picks; i++) {
             // Pick a remaining element
