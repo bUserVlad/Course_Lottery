@@ -444,3 +444,33 @@ describe("FairLottery: Commit function", function () {
   });
 });
 
+describe("FairLottery: Reveal function", function () {
+
+  // Commit values
+  const NUMBER = 88888;
+  const SECRET = "The best secret in the world!";
+
+   async function commitAs(_lottery: any, signer: any, number = Number, secret = SECRET) {
+    const {lottery, tree, params} = _lottery;
+    await registerAs(lottery, tree, signer, params.deposit);
+    await networkHelpers.time.increaseTo(params.registrationEnd + 1);
+
+    const hash = await lottery.generateCommitHash(signer.address, NUMBER, SECRET);
+    await lottery.connect(signer).commit(hash);
+
+    await networkHelpers.time.increaseTo(params.commitEnd + 1);
+  };
+
+  it("Reveal works with a true commit", async function () {
+    const deployment = await deployLottery();
+    const {lottery, elodie} = await deployment;
+    await commitAs(deployment, elodie);
+
+    await expect (lottery.connect(elodie).reveal(NUMBER, SECRET))
+      .to.emit(lottery, "Revealed")
+      .withArgs(elodie.address);
+
+    const expectedSeed = ethers.keccak256(ethers.AbiCoder.defaultAbiCoder().encode(["bytes32", "string"], [ethers.ZeroHash, NUMBER]));
+    expect (await lottery.getSeed()).to.equal(expectedSeed);
+    });
+});

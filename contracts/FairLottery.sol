@@ -329,6 +329,9 @@ contract FairLottery {
         return lottery.participants[participant].waiting;
     }
 
+    function getSeed() external view returns (bytes32) {
+        return lottery.seed;
+    }
 
     //TODO
     /*
