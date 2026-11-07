@@ -450,7 +450,7 @@ describe("FairLottery: Reveal function", function () {
   const NUMBER = 88888;
   const SECRET = "The best secret in the world!";
 
-   async function commitAs(_lottery: any, signer: any, number = Number, secret = SECRET) {
+    async function commitAs(_lottery: any, signer: any, number = NUMBER, secret = SECRET) {
     const {lottery, tree, params} = _lottery;
     await registerAs(lottery, tree, signer, params.deposit);
     await networkHelpers.time.increaseTo(params.registrationEnd + 1);
@@ -459,6 +459,18 @@ describe("FairLottery: Reveal function", function () {
     await lottery.connect(signer).commit(hash);
 
     await networkHelpers.time.increaseTo(params.commitEnd + 1);
+  };
+  async function commitFive() {
+    const deployment = await deployLottery()
+    const { lottery, tree, params, anna, bruno, claudia, diego, elodie } = deployment;
+    await registerAs(lottery, tree, anna, params.deposit);
+    await registerAs(lottery, tree, bruno, params.deposit);
+    await registerAs(lottery, tree, claudia, params.deposit);
+    await registerAs(lottery, tree, diego, params.deposit);
+    await registerAs(lottery, tree, elodie, params.deposit);
+
+    await networkHelpers.time.increaseTo(params.registrationEnd + 1);
+    return deployment;
   };
 
   it("Reveal works with a true commit", async function () {
@@ -482,4 +494,61 @@ describe("FairLottery: Reveal function", function () {
     await expect (lottery.connect(elodie).reveal(42, SECRET))
       .to.be.revertedWithCustomError(lottery, "WrongInputs");
   });
+
+  it("Reveals only own correct values", async function() {
+    const deployment = await commitFive();
+    const { lottery, params, anna, bruno, claudia, diego, elodie } = deployment;
+
+    const hashElodie = await lottery.generateCommitHash(elodie.address, NUMBER, SECRET);
+    await lottery.connect(elodie).commit(hashElodie);
+
+    const hashBruno = await lottery.generateCommitHash(bruno.address, 42, SECRET);
+    await lottery.connect(diego).commit(hashBruno);
+
+    await networkHelpers.time.increaseTo(params.commitEnd + 1);
+
+    await expect (lottery.connect(elodie).reveal(42, SECRET))
+      .to.be.revertedWithCustomError(lottery, "WrongInputs");
+  });
+
+  it("Reveals only own correct values 2", async function() {
+    const deployment = await commitFive();
+    const { lottery, params, anna, bruno, claudia, diego, elodie } = deployment;
+
+    const hashElodie = await lottery.generateCommitHash(elodie.address, NUMBER, SECRET);
+    await lottery.connect(elodie).commit(hashElodie);
+
+    const hashBruno = await lottery.generateCommitHash(bruno.address, 42, SECRET);
+    await lottery.connect(diego).commit(hashBruno);
+
+    await networkHelpers.time.increaseTo(params.commitEnd + 1);
+
+    await expect (lottery.connect(diego).reveal(NUMBER, SECRET))
+      .to.be.revertedWithCustomError(lottery, "WrongInputs");
+  });
+
+  it("Rejects a second reveal", async function() {
+    const deployment = await commitFive();
+    const { lottery, params, anna, bruno, claudia, diego, elodie } = deployment;
+
+    const hashElodie = await lottery.generateCommitHash(elodie.address, NUMBER, SECRET);
+    await lottery.connect(elodie).commit(hashElodie);
+
+    await networkHelpers.time.increaseTo(params.commitEnd + 1);
+
+    await lottery.connect(elodie).reveal(NUMBER, SECRET);
+    await expect (lottery.connect(elodie).reveal(NUMBER, SECRET))
+      .to.be.revertedWithCustomError(lottery, "AlreadyRevealed");
+  });
+
+    it("Rejects reveal if never commited", async function() {
+    const deployment = await commitFive();
+    const { lottery, params, anna, bruno, claudia, diego, elodie } = deployment;
+
+    await networkHelpers.time.increaseTo(params.commitEnd + 1);
+
+    await expect (lottery.connect(elodie).reveal(NUMBER, SECRET))
+      .to.be.revertedWithCustomError(lottery, "EmptyHash");
+  });
+
 });
