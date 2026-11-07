@@ -470,7 +470,7 @@ describe("FairLottery: Reveal function", function () {
       .to.emit(lottery, "Revealed")
       .withArgs(elodie.address);
 
-    const expectedSeed = ethers.keccak256(ethers.AbiCoder.defaultAbiCoder().encode(["bytes32", "string"], [ethers.ZeroHash, NUMBER]));
+    const expectedSeed = ethers.keccak256(ethers.AbiCoder.defaultAbiCoder().encode(["bytes32", "int256"], [ethers.ZeroHash, NUMBER]));
     expect (await lottery.getSeed()).to.equal(expectedSeed);
     });
 });
