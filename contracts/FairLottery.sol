@@ -275,6 +275,10 @@ contract FairLottery {
         uint256 maxPicks = lottery.availablePlaces * 2; // Waiting list will be as long as the winners list
         uint256 picks = remaining < maxPicks ? remaining : maxPicks; // min(remaining, maxPicks)
         
+        // https://speedrunethereum.com/guides/blockchain-randomness-solidity
+        bytes32 seedAddOn = keccak256(abi.encode(block.prevrandao, msg.sender));
+        lottery.seed = keccak256(abi.encode(lottery.seed, seedAddOn));
+
         // There remain elements to shuffle
         for (uint256 i; i < picks; i++) {
             // Pick a remaining element
