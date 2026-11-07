@@ -23,7 +23,6 @@ contract FairLottery {
     error NotWinner();
     error AlreadyCommitted();
     error EmptyHash();
-    error NotCommitted();
     error AlreadyRevealed();
     error WrongInputs();
 
@@ -46,7 +45,6 @@ contract FairLottery {
         bool won;
         bool waiting;
         bytes32 commitHash;
-        bool committed;
         bool revealed;
         bool depositRefunded;
         uint256 listIndex;
@@ -240,7 +238,6 @@ contract FairLottery {
         if (commitHash == bytes32(0)) revert EmptyHash();
 
         p.commitHash = commitHash;
-        p.committed = true;
 
         emit Committed (msg.sender);
     }
@@ -254,11 +251,12 @@ contract FairLottery {
     function reveal(uint256 number, string  memory secret) public inPhase(Phase.Reveal){
         Participant storage p = lottery.participants[msg.sender];
         if (!p.registered) revert NotRegistered();
-        if (!p.committed) revert NotCommitted();
+        if (p.commitHash == bytes32(0) ) revert EmptyHash();
         if (p.revealed) revert AlreadyRevealed();
         if (p.commitHash != generateCommitHash(msg.sender, number, secret)) revert WrongInputs();
-        // to prevent that someone could bring the seed to the limit with type(uint256).max
         p.revealed = true;
+        // to prevent that someone could bring the seed to the limit with type(uint256).max
+        // like the OpenSSH issue
         lottery.seed = keccak256(abi.encode(lottery.seed, number));
         emit Revealed(msg.sender);
     }
