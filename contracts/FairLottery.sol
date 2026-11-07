@@ -41,6 +41,7 @@ contract FairLottery {
     event PlaceDeclined(address indexed participant);
     event Committed(address indexed participant);
     event Revealed(address indexed participant);
+    event Drawn(bytes32 seed);
 
     // Variables for the participants
     struct Participant {
@@ -286,6 +287,7 @@ contract FairLottery {
         // https://speedrunethereum.com/guides/blockchain-randomness-solidity
         bytes32 seedAddOn = keccak256(abi.encode(block.prevrandao, blockhash(block.number - 1)));
         lottery.seed = keccak256(abi.encode(lottery.seed, seedAddOn));
+        emit Drawn(lottery.seed);
         for (uint256 i; i < picks; i++) {
             // Pick a remaining element
             uint256 randId = uint256(keccak256(abi.encode(lottery.seed, i))) % remaining; 
