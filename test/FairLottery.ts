@@ -463,14 +463,26 @@ describe("FairLottery: Reveal function", function () {
 
   it("Reveal works with a true commit", async function () {
     const deployment = await deployLottery();
-    const {lottery, elodie} = await deployment;
+    const {lottery, elodie} = deployment;
     await commitAs(deployment, elodie);
 
     await expect (lottery.connect(elodie).reveal(NUMBER, SECRET))
       .to.emit(lottery, "Revealed")
       .withArgs(elodie.address);
-
-    const expectedSeed = ethers.keccak256(ethers.AbiCoder.defaultAbiCoder().encode(["bytes32", "string"], [ethers.ZeroHash, NUMBER]));
+    const expectedSeed = ethers.keccak256(ethers.AbiCoder.defaultAbiCoder().encode(["bytes32", "int256"], [ethers.ZeroHash, NUMBER]));
     expect (await lottery.getSeed()).to.equal(expectedSeed);
     });
+  
+  it("Reveals only correct values", async function() {
+    const deployment = await deployLottery();
+    const {lottery, elodie} = deployment;
+    await commitAs(deployment, elodie);
+
+    await expect (lottery.connect(elodie).reveal(NUMBER, SECRET))
+      .to.emit(lottery, "Revealed")
+      .withArgs(elodie.address);
+    const expectedSeed = ethers.keccak256(ethers.AbiCoder.defaultAbiCoder().encode(["bytes32", "int256"], [ethers.ZeroHash, 42]));
+    expect (await lottery.getSeed()).to.be.revertedWithCustomError(lottery, "WrongInputs");
+  });
+  
 });
