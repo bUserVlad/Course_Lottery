@@ -353,17 +353,5 @@ contract FairLottery {
     function refundWinnersAfterDeadline() external payable {
     
     }
-    */
-
-    // https://github.com/0xHuzaifa/Simple-Lottery/blob/main/Lottery.sol
-    // Generating random numbers unsave version
-    /*
-    function random() private view returns(uint) {
-        return uint(keccak256( abi.encodePacked (
-            block.prevrandao, block.timestamp, lottery.participants.length)));
-    }
-    */
-
-
     
 }
