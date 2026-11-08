@@ -274,9 +274,10 @@ contract FairLottery {
         drawWinnersShuffleArray();
         lottery.phase = Phase.Drawn;
     }
-
-    // Fisher-Yates-Shuffle
-    // https://ethereum.stackexchange.com/questions/129364/randomly-shuffling-a-mapping-in-solidity
+    /*
+    Fisher-Yates-Shuffle
+    https://ethereum.stackexchange.com/questions/129364/randomly-shuffling-a-mapping-in-solidity
+    */
     function drawWinnersShuffleArray() private {
         address[] memory pool = lottery.participantList;
 
@@ -348,10 +349,11 @@ contract FairLottery {
     function getDeadlines() external view returns (uint64, uint64, uint64) {
         return (lottery.registrationEnd, lottery.commitEnd, lottery.revealEnd);
     }
+
     //TODO
     /*
     function refundWinnersAfterDeadline() external payable {
     
     }
-    
+    */
 }
