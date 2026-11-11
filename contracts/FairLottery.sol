@@ -28,6 +28,7 @@ contract FairLottery {
     error WrongTimeline();
     error EmptyMerkleRoot();
     error NoPlaces();
+    error NotOwner();
 
 
     // Phases each lottery can have
@@ -42,6 +43,7 @@ contract FairLottery {
     event Committed(address indexed participant);
     event Revealed(address indexed participant);
     event Drawn(bytes32 seed);
+    event UpdateMerkleTree(bytes32 oldRoot, bytes32 newRoot);
 
     // Variables for the participants
     struct Participant {
@@ -100,6 +102,14 @@ contract FairLottery {
         lottery.registrationEnd = uint64(block.timestamp + registrationMinutes_ * 1 minutes);
         lottery.commitEnd = lottery.registrationEnd + uint64(commitMinutes_ * 1 minutes);
         lottery.revealEnd = lottery.commitEnd + uint64(revealMinutes_ * 1 minutes);
+    }
+
+    // Updating the merkle root if a new student registers and wants to participate
+    function updateMerkleTree(bytes32 newRoot) external inPhase(Phase.Registration) {
+        if (msg.sender != lottery.owner) revert NotOwner();
+        if (newRoot == bytes32(0)) revert EmptyMerkleRoot();
+        emit UpdateMerkleTree(lottery.merkleRoot, newRoot);
+        lottery.merkleRoot = newRoot;
     }
 
     // Check current phase of the lottery
