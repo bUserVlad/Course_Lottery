@@ -162,7 +162,6 @@ contract FairLottery {
         lottery.participantList[pIndex] = last;
         lottery.participants[last].listIndex = pIndex;
         lottery.participantList.pop();
-        p.registered = false;
         
         refundDeposit(who, lottery.deposit);
 
@@ -363,9 +362,12 @@ contract FairLottery {
     }
 
     //TODO
-    /*
-    function refundWinnersAfterDeadline() external payable {
     
+    function refundWinnersAfterDeadline() external payable inPhase(Phase.Finished){
+        Participant storage p = lottery.participants[msg.sender];
+        if (!p.won) revert NotWinner();
+        if (p.depositRefunded) revert AlreadyRefunded();
+        refundDeposit(msg.sender, lottery.deposit);        
     }
-    */
+    
 }
