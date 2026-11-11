@@ -273,7 +273,9 @@ contract FairLottery {
     function draw() external inPhase(Phase.ReadyToDraw){
         drawWinnersShuffleArray();
         lottery.phase = Phase.Drawn;
+        emit Drawn(lottery.seed);
     }
+
     /*
     Fisher-Yates-Shuffle
     https://ethereum.stackexchange.com/questions/129364/randomly-shuffling-a-mapping-in-solidity
