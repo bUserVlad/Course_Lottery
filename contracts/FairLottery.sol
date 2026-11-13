@@ -66,6 +66,7 @@ contract FairLottery {
         uint256 deposit;
         uint256 refundPercentage;
         uint256 moneyDeposited;
+        uint256 payOutToWinners;
         uint256 availablePlaces;
         uint256 nextWaiting;
         uint64 registrationEnd;
@@ -283,6 +284,9 @@ contract FairLottery {
         drawWinnersShuffleArray();
         lottery.phase = Phase.Drawn;
         emit Drawn(lottery.seed);
+        if (lottery.winners.length > 0) {
+            lottery.payOutToWinners = lottery.moneyDeposited / lottery.winners.length;
+        }
     }
 
     /*
@@ -323,8 +327,17 @@ contract FairLottery {
         }
     }
 
+    function getRefundPercantage() external view returns (uint256) {
+        return lottery.refundPercentage;
+    }
 
+    function getDepositToPay() external view returns (uint256) {
+        return lottery.deposit;
+    }
 
+    function getAvailablePlaces() external view returns (uint256) {
+        return lottery.availablePlaces;
+    }
 
     // Overview of the participant list
     function getParticipants() external view returns (address[] memory) {
@@ -367,7 +380,7 @@ contract FairLottery {
         Participant storage p = lottery.participants[msg.sender];
         if (!p.won) revert NotWinner();
         if (p.depositRefunded) revert AlreadyRefunded();
-        refundDeposit(msg.sender, lottery.deposit);        
+        refundDeposit(msg.sender, lottery.payOutToWinners);        
     }
     
 }
