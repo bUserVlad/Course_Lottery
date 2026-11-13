@@ -67,11 +67,13 @@ contract FairLottery {
         uint256 refundPercentage;
         uint256 moneyDeposited;
         uint256 payOutToWinners;
+        uint256 forfeitedPool;
         uint256 availablePlaces;
         uint256 nextWaiting;
         uint64 registrationEnd;
         uint64 commitEnd;
         uint64 revealEnd;
+        uint64 courseEnd;
         bytes32 seed;
         address[] winners;
         address[] waitingList;
@@ -89,7 +91,8 @@ contract FairLottery {
         uint256 availablePlaces_,
         uint256 registrationMinutes_,
         uint256 commitMinutes_,
-        uint256 revealMinutes_
+        uint256 revealMinutes_,
+        uint256 courseMinutes_
     ) { 
         lottery.owner = msg.sender;
         if (merkleRoot_ == bytes32(0)) revert EmptyMerkleRoot();
@@ -103,6 +106,7 @@ contract FairLottery {
         lottery.registrationEnd = uint64(block.timestamp + registrationMinutes_ * 1 minutes);
         lottery.commitEnd = lottery.registrationEnd + uint64(commitMinutes_ * 1 minutes);
         lottery.revealEnd = lottery.commitEnd + uint64(revealMinutes_ * 1 minutes);
+        lottery.courseEnd = lottery.revealEnd + uint64(courseMinutes_ * 1 minutes);
     }
 
     // Updating the merkle root if a new student registers and wants to participate
@@ -193,6 +197,7 @@ contract FairLottery {
         lottery.participants[msg.sender].won = false;
         lottery.participants[msg.sender].registered = false;
         uint256 refund = lottery.deposit * lottery.refundPercentage / 100;
+        lottery.forfeitedPool += (lottery.deposit-refund);
 
         refundDeposit(msg.sender, refund);
 
@@ -212,11 +217,10 @@ contract FairLottery {
 
 
     function claimDeposit() external {
-        if (currentPhase() < Phase.Drawn) revert WrongPhase();
         Participant storage p = lottery.participants[msg.sender];
         if (!p.registered) revert NotRegistered();
         if (p.won) revert UseRefundAfterPlaceGranted();
-        if (p.waiting) revert UseLeaveWaitingList();
+        if (p.waiting && currentPhase() == Phase.Drawn) revert UseLeaveWaitingList();
         if (p.depositRefunded) revert AlreadyRefunded();
 
         refundDeposit(msg.sender, lottery.deposit);
@@ -284,9 +288,6 @@ contract FairLottery {
         drawWinnersShuffleArray();
         lottery.phase = Phase.Drawn;
         emit Drawn(lottery.seed);
-        if (lottery.winners.length > 0) {
-            lottery.payOutToWinners = lottery.moneyDeposited / lottery.winners.length;
-        }
     }
 
     /*
@@ -370,17 +371,25 @@ contract FairLottery {
         return lottery.seed;
     }
 
-    function getDeadlines() external view returns (uint64, uint64, uint64) {
-        return (lottery.registrationEnd, lottery.commitEnd, lottery.revealEnd);
+    function getDeadlines() external view returns (uint64, uint64, uint64, uint256) {
+        return (lottery.registrationEnd, lottery.commitEnd, lottery.revealEnd, lottery.courseEnd);
     }
 
     //TODO
     
-    function refundWinnersAfterDeadline() external payable inPhase(Phase.Finished){
+    // Anyone can close the lottery after the course has ended
+    function finalize() external inPhase(Phase.Drawn) {
+        if (block.timestamp < lottery.courseEnd) revert WrongPhase();
+        lottery.phase = Phase.Finished;
+        if (lottery.winners.length > 0) {
+            lottery.payOutToWinners = lottery.deposit + lottery.forfeitedPool / lottery.winners.length;
+        }
+    }
+    function refundWinnersAfterDeadline() external inPhase(Phase.Finished){
         Participant storage p = lottery.participants[msg.sender];
         if (!p.won) revert NotWinner();
         if (p.depositRefunded) revert AlreadyRefunded();
-        refundDeposit(msg.sender, lottery.payOutToWinners);        
+        refundDeposit(msg.sender, lottery.payOutToWinners);    
     }
     
 }

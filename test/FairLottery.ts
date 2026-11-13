@@ -25,6 +25,7 @@ async function deployLottery(overrides = {}) {
     registrationMinutes: 10,
     commitMinutes: 10,
     revealMinutes: 10,
+    courseMinutes: 10,
     ...overrides,
   };
 
@@ -39,12 +40,14 @@ async function deployLottery(overrides = {}) {
     params.registrationMinutes,
     params.commitMinutes,
     params.revealMinutes,
+    params.courseMinutes,
   ]);
 
-  const [reg, com, rev] = await lottery.getDeadlines();
+  const [reg, com, rev, cor] = await lottery.getDeadlines();
   params.registrationEnd = Number(reg);
   params.commitEnd = Number(com);
   params.revealEnd = Number(rev);
+  params.courseEnd = Number(cor);
 
   return { lottery, tree, params, owner, anna, bruno, claudia, diego, elodie, florian, globi};
 }
@@ -381,6 +384,17 @@ describe("FairLottery: Fisher-Yates-Shuffle", function () {
       await registerAs(lottery, tree, elodie, params.deposit);
 
       await expect(lottery.checkIfWon(elodie.address)).to.be.revertedWithCustomError(lottery, "NotDrawnYet")
+    });
+
+    it("Correct amount is refunded to winners after one declined", async function () {
+        await networkHelpers.time.increaseTo(params.courseEnd);
+        await lottery.finalize();
+        const winnersNow = await lottery.getWinners();
+        const winner = await ethers.getSigner(winnersNow[0]);
+        const forfeited = (params.deposit * BigInt(100 - params.refundPercentage))/100n;
+        const expectedRefundAmount = params.deposit + forfeited/BigInt(winnersNow.length);
+        await expect (lottery.connect(winner).refundWinnersAfterDeadline())
+          .to.changeEtherBalance(ethers, winner, expectedRefundAmount);
     });
   });
 });
