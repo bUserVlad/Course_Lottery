@@ -328,6 +328,25 @@ contract FairLottery {
         }
     }
 
+    
+    // Anyone can close the lottery after the course has ended
+    function finalize() external inPhase(Phase.Drawn) {
+        if (block.timestamp < lottery.courseEnd) revert WrongPhase();
+        lottery.phase = Phase.Finished;
+        if (lottery.winners.length > 0) {
+            lottery.payOutToWinners = lottery.deposit + lottery.forfeitedPool / lottery.winners.length;
+        }
+    }
+
+
+    function refundWinnersAfterDeadline() external inPhase(Phase.Finished){
+        Participant storage p = lottery.participants[msg.sender];
+        if (!p.won) revert NotWinner();
+        if (p.depositRefunded) revert AlreadyRefunded();
+        refundDeposit(msg.sender, lottery.payOutToWinners);    
+    }
+
+    
     function getRefundPercantage() external view returns (uint256) {
         return lottery.refundPercentage;
     }
@@ -373,23 +392,5 @@ contract FairLottery {
 
     function getDeadlines() external view returns (uint64, uint64, uint64, uint256) {
         return (lottery.registrationEnd, lottery.commitEnd, lottery.revealEnd, lottery.courseEnd);
-    }
-
-    //TODO
-    
-    // Anyone can close the lottery after the course has ended
-    function finalize() external inPhase(Phase.Drawn) {
-        if (block.timestamp < lottery.courseEnd) revert WrongPhase();
-        lottery.phase = Phase.Finished;
-        if (lottery.winners.length > 0) {
-            lottery.payOutToWinners = lottery.deposit + lottery.forfeitedPool / lottery.winners.length;
-        }
-    }
-    function refundWinnersAfterDeadline() external inPhase(Phase.Finished){
-        Participant storage p = lottery.participants[msg.sender];
-        if (!p.won) revert NotWinner();
-        if (p.depositRefunded) revert AlreadyRefunded();
-        refundDeposit(msg.sender, lottery.payOutToWinners);    
-    }
-    
+    }    
 }
