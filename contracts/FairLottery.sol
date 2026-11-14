@@ -33,6 +33,7 @@ contract FairLottery {
     error NoCourseFee();
     error AlreadyWithdrawn();
     error WrongFunction();
+    error NotRevealed();
 
 
     // Phases each lottery can have
@@ -226,10 +227,11 @@ contract FairLottery {
         emit LeftWaitingList(msg.sender);
     }
 
+    // Claim deposit if not won
     function claimDeposit() external {
         if (currentPhase() < Phase.Drawn) revert WrongPhase();
         Participant storage p = participants[msg.sender];
-        if (!p.registered) revert NotRegistered();
+        if (everyoneCommits && !p.registered) revert NotRevealed();
         if (p.won) revert UseRefundAfterPlaceGranted();
         if (p.waiting && currentPhase() == Phase.Drawn) revert UseLeaveWaitingList();
         if (p.depositRefunded) revert AlreadyRefunded();
@@ -300,6 +302,14 @@ contract FairLottery {
     function draw() external inPhase(Phase.ReadyToDraw){
         drawWinnersShuffleArray();
         phase = Phase.Drawn;
+
+        // Deposit of not revealed participants gets int othe forfeitedPool if everyone has to commit
+        /*
+        if (everyoneCommits) {
+            forfeitedPool = (participantList.length - revealedList.length) * deposit;
+        }
+        */
+
         emit Drawn(seed);
     }
 
@@ -350,7 +360,7 @@ contract FairLottery {
         if (block.timestamp < courseEnd) revert WrongPhase();
         phase = Phase.Finished;
         if (winners.length > 0) {
-            forfeitedPoolPayOutToWinners =forfeitedPool / winners.length;
+            forfeitedPoolPayOutToWinners = forfeitedPool / winners.length;
         }
     }
 
