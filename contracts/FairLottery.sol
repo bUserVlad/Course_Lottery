@@ -345,20 +345,6 @@ contract FairLottery {
         refundDeposit(msg.sender, payOutToWinners);    
     }
 
-    /*
-    function getRefundPercantage() external view returns (uint256) {
-        return refundPercentage;
-    }
-
-    function getDepositToPay() external view returns (uint256) {
-        return deposit;
-    }
-
-    function getAvailablePlaces() external view returns (uint256) {
-        return availablePlaces;
-    }
-    */
-
     // Overview of the participant list
     function getParticipants() external view returns (address[] memory) {
       return participantList;
@@ -386,13 +372,4 @@ contract FairLottery {
         return participants[participant].waiting;
     }
 
-    /*
-    function getSeed() external view returns (bytes32) {
-        return seed;
-    }
-
-    function getDeadlines() external view returns (uint64, uint64, uint64, uint256) {
-        return (registrationEnd, commitEnd, revealEnd, courseEnd);
-    }    
-    */
 }
