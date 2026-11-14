@@ -24,6 +24,7 @@ async function deployLottery(overrides = {}) {
     availablePlaces: 2,
     everyoneCommits: false,
     theCourseCosts: false,
+    lateRegistration: false,
     registrationMinutes: 10,
     commitMinutes: 10,
     revealMinutes: 10,
@@ -40,19 +41,20 @@ async function deployLottery(overrides = {}) {
   // console.log(params);
 
   // Deployment of the lottery with the previous created parameters
-  const lottery = await ethers.deployContract("FairLottery", [
-    params.deposit,
-    params.refundPercentage,
-    params.availablePlaces,
-    params.merkleRoot,
-    params.everyoneCommits,
-    params.theCourseCosts,
-    params.registrationMinutes,
-    params.commitMinutes,
-    params.revealMinutes,
-    params.withdrawMinutes,
-    params.courseDuration
-  ]);
+  const lottery = await ethers.deployContract("FairLottery", [{
+    deposit: params.deposit,
+    refundPercentage: params.refundPercentage,
+    availablePlaces: params.availablePlaces,
+    merkleRoot: params.merkleRoot,
+    everyoneCommits: params.everyoneCommits,
+    theCourseCosts: params.theCourseCosts,
+    lateRegistration: params.lateRegistration,
+    registrationMinutes: params.registrationMinutes,
+    commitMinutes: params.commitMinutes,
+    revealMinutes: params.revealMinutes,
+    withdrawMinutes: params.withdrawMinutes,
+    courseDuration: params.courseDuration,
+  }]);
 
   params.registrationEnd = Number(await lottery.registrationEnd());
   params.commitEnd = Number(await lottery.commitEnd());
