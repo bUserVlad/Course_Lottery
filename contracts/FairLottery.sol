@@ -48,6 +48,8 @@ contract FairLottery {
     event Revealed(address indexed participant);
     event Drawn(bytes32 seed);
     event UpdateMerkleTree(bytes32 oldRoot, bytes32 newRoot);
+    event ClaimedDeposit(address indexed participant);
+    event WinnerRefunded(address indexed participant);
 
     // Variables for the participants
     struct Participant {
@@ -273,6 +275,8 @@ contract FairLottery {
         if (p.depositRefunded) revert AlreadyRefunded();
 
         refundDeposit(msg.sender, deposit);
+
+        emit ClaimedDeposit(msg.sender);
     }
 
     // Looking for the next address in the waiting list and ignoring participants who already left.
@@ -406,6 +410,8 @@ contract FairLottery {
 
         uint256 amount = theCourseCosts ? forfeitedPoolPayOutToWinners : forfeitedPoolPayOutToWinners + deposit;
         refundDeposit(msg.sender, amount);
+
+        emit WinnerRefunded(msg.sender);
     }
 
     // Paying the course owner the course cost
