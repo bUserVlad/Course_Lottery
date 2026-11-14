@@ -84,6 +84,7 @@ contract FairLottery {
     bool public everyoneCommits;
     bool public theCourseCosts;
     bool private feesWithdrawn;
+    bool private undistributedWithdrawn;
     
     address[] private winners;
     address[] private waitingList;
@@ -367,7 +368,21 @@ contract FairLottery {
         feesWithdrawn = true;
 
         // paying out the total course amount plus the remainder of the forfeitedPool
-        uint256 amount = winners.length * deposit + forfeitedPool - forfeitedPoolPayOutToWinners * winners.length;
+        uint256 amount = winners.length * deposit;
+        moneyDeposited -= amount;
+
+        (bool ok, ) = payable(owner).call{value: amount}("");
+        if (!ok) revert RefundFailed();
+    }
+
+    // Paying the course owner the undistributed amout if everyone backs up
+        function withdrawUndistributed() external inPhase(Phase.Finished) {
+        if (msg.sender != owner) revert NotOwner();
+        if (feesWithdrawn) revert AlreadyWithdrawn();
+        undistributedWithdrawn = true;
+
+        // paying out the total course amount plus the remainder of the forfeitedPool
+        uint256 amount = forfeitedPool - forfeitedPoolPayOutToWinners * winners.length;
         moneyDeposited -= amount;
 
         (bool ok, ) = payable(owner).call{value: amount}("");
