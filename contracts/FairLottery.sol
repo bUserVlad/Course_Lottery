@@ -236,7 +236,7 @@ contract FairLottery {
         if (currentPhase() < Phase.Drawn) revert WrongPhase();
         Participant storage p = participants[msg.sender];
         if (!p.registered) revert NotRegistered();
-        if (everyoneCommits && !p.registered) revert NotRevealed();
+        if (everyoneCommits && !p.revealed) revert NotRevealed();
         if (p.won) revert UseRefundWinnersAfterDeadline();
         if (p.waiting && currentPhase() == Phase.Drawn) revert UseLeaveWaitingList();
         if (p.depositRefunded) revert AlreadyRefunded();
