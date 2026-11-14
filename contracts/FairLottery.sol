@@ -7,7 +7,6 @@ import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 contract FairLottery {
     
     // Errors
-    error RegistrationClosed();
     error AlreadyRegistered();
     error NotRegistered();
     error WrongAmount();
@@ -29,10 +28,8 @@ contract FairLottery {
     error EmptyMerkleRoot();
     error NoPlaces();
     error NotOwner();
-    error NoRefundCourseFee();
     error NoCourseFee();
     error AlreadyWithdrawn();
-    error WrongFunction();
     error NotRevealed();
 
 
@@ -99,7 +96,6 @@ contract FairLottery {
         uint256 refundPercentage_,
         uint256 availablePlaces_,
         bytes32 merkleRoot_,
-        uint256 forfeitedPoolPayOutToWinners_,
         bool theCourseCosts_,
         uint256 registrationMinutes_,
         uint256 commitMinutes_,
@@ -114,7 +110,6 @@ contract FairLottery {
         refundPercentage = refundPercentage_;
         if (availablePlaces_ == 0) revert NoPlaces();
         availablePlaces = availablePlaces_;
-        forfeitedPoolPayOutToWinners = forfeitedPoolPayOutToWinners_;
         theCourseCosts = theCourseCosts_;
         if (registrationMinutes_ == 0 || commitMinutes_ == 0 || revealMinutes_ == 0 || courseMinutes_ == 0) revert WrongTimeline();
         registrationEnd = uint64(block.timestamp + registrationMinutes_ * 1 minutes);
