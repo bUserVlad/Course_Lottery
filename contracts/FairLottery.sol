@@ -76,10 +76,14 @@ contract FairLottery {
     uint256 public payOutToWinners;
     uint256 public forfeitedPool;
     uint256 public nextWaiting;
+
+    bool public everyoneCommits;
+    bool public theCourseCosts;
     
     address[] private winners;
     address[] private waitingList;
     address[] private participantList;
+    address[] private revealedList;
     mapping(address => Participant) private participants;
 
 
@@ -278,6 +282,7 @@ contract FairLottery {
         if (p.revealed) revert AlreadyRevealed();
         if (p.commitHash != generateCommitHash(msg.sender, number, secret)) revert WrongInputs();
         p.revealed = true;
+        revealedList.push(msg.sender);
         // to prevent that someone could bring the seed to the limit with type(uint256).max
         // like the OpenSSH issue
         seed = keccak256(abi.encode(seed, number));
@@ -295,15 +300,19 @@ contract FairLottery {
     https://ethereum.stackexchange.com/questions/129364/randomly-shuffling-a-mapping-in-solidity
     */
     function drawWinnersShuffleArray() private {
-        address[] memory pool = participantList;
-
+        // If everyone has to commit, then we take the revealedList otherwise participantList
+        address[] memory pool = everyoneCommits ? revealedList : participantList; 
         uint256 remaining = pool.length;
         uint256 maxPicks = availablePlaces * 2; // Waiting list will be as long as the winners list
         uint256 picks = remaining < maxPicks ? remaining : maxPicks; // min(remaining, maxPicks)
         
         // https://speedrunethereum.com/guides/blockchain-randomness-solidity
-        bytes32 seedAddOn = keccak256(abi.encode(block.prevrandao, blockhash(block.number - 1)));
-        seed = keccak256(abi.encode(seed, seedAddOn));
+        bytes32 seedAddOn;
+        if (!everyoneCommits) {
+            seedAddOn = keccak256(abi.encode(block.prevrandao, blockhash(block.number - 1)));
+            seed = keccak256(abi.encode(seed, seedAddOn));
+        }
+
         for (uint256 i; i < picks; i++) {
             // Pick a remaining element
             uint256 randId = uint256(keccak256(abi.encode(seed, i))) % remaining; 
