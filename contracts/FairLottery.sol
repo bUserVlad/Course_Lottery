@@ -99,7 +99,7 @@ contract FairLottery {
         uint256 refundPercentage_,
         uint256 availablePlaces_,
         bytes32 merkleRoot_,
-        bool forfeitedPoolPayOutToWinners_,
+        uint256 forfeitedPoolPayOutToWinners_,
         bool theCourseCosts_,
         uint256 registrationMinutes_,
         uint256 commitMinutes_,
