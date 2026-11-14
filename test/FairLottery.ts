@@ -31,7 +31,7 @@ async function deployLottery(overrides = {}) {
     registrationEnd: 0,
     commitEnd: 0,
     revealEnd: 0,
-    courseEnd: 0,
+    courseStart: 0,
     ...overrides,
   };
 
@@ -54,7 +54,7 @@ async function deployLottery(overrides = {}) {
   params.registrationEnd = Number(await lottery.registrationEnd());
   params.commitEnd = Number(await lottery.commitEnd());
   params.revealEnd = Number(await lottery.revealEnd());
-  params.courseEnd = Number(await lottery.courseEnd());
+  params.courseStart = Number(await lottery.courseStart());
 
   return { lottery, tree, params, owner, anna, bruno, claudia, diego, elodie, florian, globi};
 }
@@ -394,7 +394,7 @@ describe("FairLottery: Fisher-Yates-Shuffle", function () {
     });
 
     it("Correct amount is refunded to winners after one declined", async function () {
-        await networkHelpers.time.increaseTo(params.courseEnd);
+        await networkHelpers.time.increaseTo(params.courseStart);
         await lottery.finalize();
         const winnersNow = await lottery.getWinners();
         const winner = await ethers.getSigner(winnersNow[0]);

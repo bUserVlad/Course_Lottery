@@ -16,7 +16,6 @@ contract FairLottery {
     error NotOnWaitingList();
     error InvalidRefundPercentage();
     error NotDrawnYet();
-    error UseRefundAfterPlaceGranted();
     error UseLeaveWaitingList();
     error AlreadyRefunded();
     error NotWinner();
@@ -35,7 +34,7 @@ contract FairLottery {
 
 
     // Phases each lottery can have
-    enum Phase {Registration, Commit, Reveal, ReadyToDraw, Drawn, Finished}
+    enum Phase {Registration, Commit, Reveal, ReadyToDraw, Drawn, CourseStarted, Finished}
 
     event Registered(address indexed participant);
     event Unregistered(address indexed participant);
@@ -69,7 +68,7 @@ contract FairLottery {
     uint64 public immutable registrationEnd;
     uint64 public immutable commitEnd;
     uint64 public immutable revealEnd;
-    uint64 public immutable courseEnd;
+    uint64 public immutable courseStart;
     
     Phase private phase;
     
@@ -118,7 +117,7 @@ contract FairLottery {
         registrationEnd = uint64(block.timestamp + registrationMinutes_ * 1 minutes);
         commitEnd = registrationEnd + uint64(commitMinutes_ * 1 minutes);
         revealEnd = commitEnd + uint64(revealMinutes_ * 1 minutes);
-        courseEnd = revealEnd + uint64(courseMinutes_ * 1 minutes);
+        courseStart = revealEnd + uint64(courseMinutes_ * 1 minutes);
     }
 
     // Updating the merkle root if a new student registers and wants to participate
@@ -131,7 +130,10 @@ contract FairLottery {
 
     // Check current phase of the lottery
     function currentPhase() public view returns (Phase) {
-        if (phase >= Phase.Drawn) return phase;
+        if (phase == Phase.Finished) return Phase.Finished;
+        if (phase >= Phase.Drawn) {
+            return block.timestamp < courseStart ? Phase.Drawn : Phase.CourseStarted;
+        }
         if (block.timestamp < registrationEnd) return Phase.Registration;
         if (block.timestamp < commitEnd) return Phase.Commit;
         if (block.timestamp < revealEnd) return Phase.Reveal;
@@ -166,7 +168,7 @@ contract FairLottery {
         _unregister(msg.sender);
     }
 
-    // Private unregister function of the external unregister and claimDeposit function
+    // Private unregister function of the external unregister
     function _unregister(address who) private {
         Participant storage p = participants[who];
         if (!p.registered) revert NotRegistered();
@@ -304,7 +306,7 @@ contract FairLottery {
         // Deposit of not revealed participants gets int othe forfeitedPool if everyone has to commit
         /*
         if (everyoneCommits) {
-            forfeitedPool = (participantList.length - revealedList.length) * deposit;
+            forfeitedPool += (participantList.length - revealedList.length) * deposit;
         }
         */
 
@@ -353,9 +355,8 @@ contract FairLottery {
     }
 
     
-    // Anyone can close the after the course has ended
-    function finalize() external inPhase(Phase.Drawn) {
-        if (block.timestamp < courseEnd) revert WrongPhase();
+    // Anyone can close the after the course has started
+    function finalize() external inPhase(Phase.CourseStarted) {
         phase = Phase.Finished;
         if (winners.length > 0) {
             forfeitedPoolPayOutToWinners = forfeitedPool / winners.length;
