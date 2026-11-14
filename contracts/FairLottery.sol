@@ -48,8 +48,11 @@ contract FairLottery {
     event Revealed(address indexed participant);
     event Drawn(bytes32 seed);
     event UpdateMerkleTree(bytes32 oldRoot, bytes32 newRoot);
-    event ClaimedDeposit(address indexed participant);
-    event WinnerRefunded(address indexed participant);
+    event ClaimedDeposit(address indexed participant, uint256 amount);
+    event WinnerRefunded(address indexed participant, uint256 amount);
+    event Finalized(uint256 forfeitedPool, uint256 sharePerWinner);
+    event CourseFeesWithdrawn(uint256 participant);
+    event UndistributedAmountWithdawn(uint256 amount);
 
     // Variables for the participants
     struct Participant {
@@ -276,7 +279,7 @@ contract FairLottery {
 
         refundDeposit(msg.sender, deposit);
 
-        emit ClaimedDeposit(msg.sender);
+        emit ClaimedDeposit(msg.sender, deposit);
     }
 
     // Looking for the next address in the waiting list and ignoring participants who already left.
@@ -400,6 +403,8 @@ contract FairLottery {
         if (winners.length > 0) {
             forfeitedPoolPayOutToWinners = forfeitedPool / winners.length;
         }
+
+        emit Finalized(forfeitedPool, forfeitedPoolPayOutToWinners);
     }
 
     // Refunding winner with the deposit and forfeited amount or only forfeited amout if the course costs
@@ -411,7 +416,7 @@ contract FairLottery {
         uint256 amount = theCourseCosts ? forfeitedPoolPayOutToWinners : forfeitedPoolPayOutToWinners + deposit;
         refundDeposit(msg.sender, amount);
 
-        emit WinnerRefunded(msg.sender);
+        emit WinnerRefunded(msg.sender, amount);
     }
 
     // Paying the course owner the course cost
@@ -427,6 +432,8 @@ contract FairLottery {
 
         (bool ok, ) = payable(owner).call{value: amount}("");
         if (!ok) revert RefundFailed();
+
+        emit CourseFeesWithdrawn(amount);
     }
 
     // Paying the course owner the undistributed amout if everyone backs up
@@ -441,6 +448,8 @@ contract FairLottery {
 
         (bool ok, ) = payable(owner).call{value: amount}("");
         if (!ok) revert RefundFailed();
+        
+        emit UndistributedAmountWithdawn(amount);
     }
 
     // Overview of the participant list
