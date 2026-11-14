@@ -43,11 +43,10 @@ async function deployLottery(overrides = {}) {
     params.courseMinutes,
   ]);
 
-  const [reg, com, rev, cor] = await lottery.getDeadlines();
-  params.registrationEnd = Number(reg);
-  params.commitEnd = Number(com);
-  params.revealEnd = Number(rev);
-  params.courseEnd = Number(cor);
+  params.registrationEnd = Number(await lottery.registrationEnd());
+  params.commitEnd = Number(await lottery.commitEnd());
+  params.revealEnd = Number(await lottery.revealEnd());
+  params.courseEnd = Number(await lottery.courseEnd());
 
   return { lottery, tree, params, owner, anna, bruno, claudia, diego, elodie, florian, globi};
 }
@@ -518,7 +517,7 @@ describe("FairLottery: Reveal function", function () {
       .withArgs(elodie.address);
 
     const expectedSeed = ethers.keccak256(ethers.AbiCoder.defaultAbiCoder().encode(["bytes32", "int256"], [ethers.ZeroHash, NUMBER]));
-    expect (await lottery.getSeed()).to.equal(expectedSeed);
+    expect (await lottery.seed()).to.equal(expectedSeed);
   });
 
   it("Reveals only correct values", async function() {
@@ -599,9 +598,9 @@ describe("FairLottery: Reveal function", function () {
     await networkHelpers.time.increaseTo(params.commitEnd + 1);
 
     await lottery.connect(elodie).reveal(NUMBER, SECRET);
-    const seedElodie = await lottery.getSeed();
+    const seedElodie = await lottery.seed();
     await lottery.connect(diego).reveal(42, SECRET);
-    const seedDiego = await lottery.getSeed();
+    const seedDiego = await lottery.seed();
 
     expect(seedElodie).to.not.equal(ethers.ZeroHash);
     expect(seedDiego).to.not.equal(seedElodie);
