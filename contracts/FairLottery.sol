@@ -81,8 +81,8 @@ contract FairLottery {
     uint256 public forfeitedPool;
     uint256 public nextWaiting;
 
-    bool public everyoneCommits;
-    bool public theCourseCosts;
+    bool public immutable everyoneCommits;
+    bool public immutable theCourseCosts;
     bool private feesWithdrawn;
     bool private undistributedWithdrawn;
     
@@ -94,10 +94,12 @@ contract FairLottery {
 
 
     constructor(
-        bytes32 merkleRoot_,
         uint256 deposit_,
         uint256 refundPercentage_,
         uint256 availablePlaces_,
+        bytes32 merkleRoot_,
+        bool forfeitedPoolPayOutToWinners_,
+        bool theCourseCosts_,
         uint256 registrationMinutes_,
         uint256 commitMinutes_,
         uint256 revealMinutes_,
@@ -111,6 +113,8 @@ contract FairLottery {
         refundPercentage = refundPercentage_;
         if (availablePlaces_ == 0) revert NoPlaces();
         availablePlaces = availablePlaces_;
+        forfeitedPoolPayOutToWinners = forfeitedPoolPayOutToWinners_;
+        theCourseCosts = theCourseCosts_;
         if (registrationMinutes_ == 0 || commitMinutes_ == 0 || revealMinutes_ == 0 || courseMinutes_ == 0) revert WrongTimeline();
         registrationEnd = uint64(block.timestamp + registrationMinutes_ * 1 minutes);
         commitEnd = registrationEnd + uint64(commitMinutes_ * 1 minutes);
