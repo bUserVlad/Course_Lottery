@@ -27,11 +27,13 @@ async function deployLottery(overrides = {}) {
     registrationMinutes: 10,
     commitMinutes: 10,
     revealMinutes: 10,
-    courseMinutes: 10,
+    withdrawMinutes: 10,
+    courseDuration: 10,
     registrationEnd: 0,
     commitEnd: 0,
     revealEnd: 0,
     courseStart: 0,
+    courseEnd: 0,
     ...overrides,
   };
 
@@ -48,13 +50,15 @@ async function deployLottery(overrides = {}) {
     params.registrationMinutes,
     params.commitMinutes,
     params.revealMinutes,
-    params.courseMinutes,
+    params.withdrawMinutes,
+    params.courseDuration
   ]);
 
   params.registrationEnd = Number(await lottery.registrationEnd());
   params.commitEnd = Number(await lottery.commitEnd());
   params.revealEnd = Number(await lottery.revealEnd());
   params.courseStart = Number(await lottery.courseStart());
+  params.courseEnd = Number(await lottery.courseEnd());
 
   return { lottery, tree, params, owner, anna, bruno, claudia, diego, elodie, florian, globi};
 }
@@ -179,14 +183,14 @@ describe("FairLottery: Deposit claim", function () {
   });
   
   // TODO
-  /*
+  
   it("Should be able to register again after claiming Deposit", async function () {
     const {lottery, tree, params, elodie} = await deployLottery();
     await registerAs(lottery, tree, elodie, params.deposit);
-    await lottery.connect(elodie).claimDeposit();
+    await lottery.connect(elodie).unregister();
 
-    await expect (await lottery.connect(elodie).register(tree.getProof([elodie.address]), {value: params.deposit})
-    ).to.emit(lottery, "Registered").withArgs(elodie.address);
+    await expect (lottery.connect(elodie).register(tree.getProof([elodie.address]), {value: params.deposit}))
+      .to.emit(lottery, "Registered").withArgs(elodie.address);
   
     const listNew = await lottery.getParticipants();
     expect (listNew.length).to.equal(1);
@@ -197,15 +201,21 @@ describe("FairLottery: Deposit claim", function () {
     const {lottery, tree, params, elodie} = await deployLottery();
     
     await registerAs(lottery, tree, elodie, params.deposit);
-    const tx1 = lottery.connect(elodie).claimDeposit();
-      await expect(tx1).to.changeEtherBalance(ethers, elodie, params.deposit)
+    const tx1 = lottery.connect(elodie).unregister();
+    await expect(tx1).to.changeEtherBalance(ethers, elodie, params.deposit)
 
     await registerAs(lottery, tree, elodie, params.deposit);
-    const tx2 = lottery.connect(elodie).claimDeposit();
-      await expect(tx2).to.changeEtherBalance(ethers, elodie, params.deposit)
-
+    const tx2 = lottery.connect(elodie).unregister();
+    await expect(tx2).to.changeEtherBalance(ethers, elodie, params.deposit)
   });
-  */
+
+  it("Rejects claimDeposit from an address that never registered", async function () {
+    const { lottery, globi } = await registerFive();
+    await lottery.draw();
+
+    await expect(lottery.connect(globi).claimDeposit())
+      .to.be.revertedWithCustomError(lottery, "NotRegistered");
+  });
 });
 
 // Testing if view function of the participations list works
@@ -394,7 +404,7 @@ describe("FairLottery: Fisher-Yates-Shuffle", function () {
     });
 
     it("Correct amount is refunded to winners after one declined", async function () {
-        await networkHelpers.time.increaseTo(params.courseStart);
+        await networkHelpers.time.increaseTo(params.courseEnd);
         await lottery.finalize();
         const winnersNow = await lottery.getWinners();
         const winner = await ethers.getSigner(winnersNow[0]);

@@ -69,6 +69,7 @@ contract FairLottery {
     uint64 public immutable commitEnd;
     uint64 public immutable revealEnd;
     uint64 public immutable courseStart;
+    uint64 public immutable courseEnd;
     
     Phase private phase;
     
@@ -101,7 +102,8 @@ contract FairLottery {
         uint256 registrationMinutes_,
         uint256 commitMinutes_,
         uint256 revealMinutes_,
-        uint256 courseMinutes_
+        uint256 withdrawMinutes_,
+        uint256 courseDuration_
     ) { 
         owner = msg.sender;
         if (merkleRoot_ == bytes32(0)) revert EmptyMerkleRoot();
@@ -113,11 +115,13 @@ contract FairLottery {
         availablePlaces = availablePlaces_;
         everyoneCommits = everyoneCommits_;
         theCourseCosts = theCourseCosts_;
-        if (registrationMinutes_ == 0 || commitMinutes_ == 0 || revealMinutes_ == 0 || courseMinutes_ == 0) revert WrongTimeline();
+        if (registrationMinutes_ == 0 || commitMinutes_ == 0 || revealMinutes_ == 0 ||
+            withdrawMinutes_ == 0 || courseDuration_ == 0) revert WrongTimeline();
         registrationEnd = uint64(block.timestamp + registrationMinutes_ * 1 minutes);
         commitEnd = registrationEnd + uint64(commitMinutes_ * 1 minutes);
         revealEnd = commitEnd + uint64(revealMinutes_ * 1 minutes);
-        courseStart = revealEnd + uint64(courseMinutes_ * 1 minutes);
+        courseStart = revealEnd + uint64(withdrawMinutes_ * 1 minutes);
+        courseEnd = courseStart + uint64(courseDuration_ * 1 minutes);
     }
 
     // Updating the merkle root if a new student registers and wants to participate
@@ -231,6 +235,7 @@ contract FairLottery {
     function claimDeposit() external {
         if (currentPhase() < Phase.Drawn) revert WrongPhase();
         Participant storage p = participants[msg.sender];
+        if (!p.registered) revert NotRegistered();
         if (everyoneCommits && !p.registered) revert NotRevealed();
         if (p.won) revert UseRefundWinnersAfterDeadline();
         if (p.waiting && currentPhase() == Phase.Drawn) revert UseLeaveWaitingList();
@@ -304,11 +309,9 @@ contract FairLottery {
         phase = Phase.Drawn;
 
         // Deposit of not revealed participants gets int othe forfeitedPool if everyone has to commit
-        /*
         if (everyoneCommits) {
             forfeitedPool += (participantList.length - revealedList.length) * deposit;
         }
-        */
 
         emit Drawn(seed);
     }
@@ -357,6 +360,7 @@ contract FairLottery {
     
     // Anyone can close the after the course has started
     function finalize() external inPhase(Phase.CourseStarted) {
+        if (block.timestamp < courseEnd) revert WrongPhase();
         phase = Phase.Finished;
         if (winners.length > 0) {
             forfeitedPoolPayOutToWinners = forfeitedPool / winners.length;
