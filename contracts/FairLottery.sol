@@ -178,9 +178,9 @@ contract FairLottery {
 
     // If apces are left after the draw because not enough people registered or
     // too many unregistered people can register late
-    function lateRegister(bytes32[] calldata proof) external payable {
+    function lateRegister(bytes32[] calldata proof) external payable inPhase(Phase.Drawn){
         if (!lateRegistration) revert LateRegistrationDisabled();
-        if (phase >= Phase.Drawn && phase < Phase.Finished || winners.length == availablePlaces) revert CantRegisterAnymore();
+        if (winners.length >= availablePlaces) revert CantRegisterAnymore();
         Participant storage p = participants[msg.sender];
         if (p.registered) revert AlreadyRegistered();
         if (msg.value != deposit) revert WrongAmount();
