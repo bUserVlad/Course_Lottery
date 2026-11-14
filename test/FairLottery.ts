@@ -43,6 +43,7 @@ async function deployLottery(overrides = {}) {
     params.refundPercentage,
     params.availablePlaces,
     params.merkleRoot,
+    params.everyoneCommits,
     params.theCourseCosts,
     params.registrationMinutes,
     params.commitMinutes,

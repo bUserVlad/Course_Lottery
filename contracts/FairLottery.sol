@@ -31,6 +31,7 @@ contract FairLottery {
     error NoCourseFee();
     error AlreadyWithdrawn();
     error NotRevealed();
+    error UseRefundWinnersAfterDeadline();
 
 
     // Phases each lottery can have
@@ -96,6 +97,7 @@ contract FairLottery {
         uint256 refundPercentage_,
         uint256 availablePlaces_,
         bytes32 merkleRoot_,
+        bool everyoneCommits_,
         bool theCourseCosts_,
         uint256 registrationMinutes_,
         uint256 commitMinutes_,
@@ -110,6 +112,7 @@ contract FairLottery {
         refundPercentage = refundPercentage_;
         if (availablePlaces_ == 0) revert NoPlaces();
         availablePlaces = availablePlaces_;
+        everyoneCommits = everyoneCommits_;
         theCourseCosts = theCourseCosts_;
         if (registrationMinutes_ == 0 || commitMinutes_ == 0 || revealMinutes_ == 0 || courseMinutes_ == 0) revert WrongTimeline();
         registrationEnd = uint64(block.timestamp + registrationMinutes_ * 1 minutes);
@@ -227,7 +230,7 @@ contract FairLottery {
         if (currentPhase() < Phase.Drawn) revert WrongPhase();
         Participant storage p = participants[msg.sender];
         if (everyoneCommits && !p.registered) revert NotRevealed();
-        if (p.won) revert UseRefundAfterPlaceGranted();
+        if (p.won) revert UseRefundWinnersAfterDeadline();
         if (p.waiting && currentPhase() == Phase.Drawn) revert UseLeaveWaitingList();
         if (p.depositRefunded) revert AlreadyRefunded();
 
@@ -385,7 +388,7 @@ contract FairLottery {
     }
 
     // Paying the course owner the undistributed amout if everyone backs up
-        function withdrawUndistributed() external inPhase(Phase.Finished) {
+    function withdrawUndistributed() external inPhase(Phase.Finished) {
         if (msg.sender != owner) revert NotOwner();
         if (undistributedWithdrawn) revert AlreadyWithdrawn();
         undistributedWithdrawn = true;
