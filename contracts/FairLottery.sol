@@ -378,7 +378,7 @@ contract FairLottery {
     // Paying the course owner the undistributed amout if everyone backs up
         function withdrawUndistributed() external inPhase(Phase.Finished) {
         if (msg.sender != owner) revert NotOwner();
-        if (feesWithdrawn) revert AlreadyWithdrawn();
+        if (undistributedWithdrawn) revert AlreadyWithdrawn();
         undistributedWithdrawn = true;
 
         // paying out the total course amount plus the remainder of the forfeitedPool
