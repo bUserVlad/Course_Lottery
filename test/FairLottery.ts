@@ -26,6 +26,10 @@ async function deployLottery(overrides = {}) {
     commitMinutes: 10,
     revealMinutes: 10,
     courseMinutes: 10,
+    registrationEnd: 0,
+    commitEnd: 0,
+    revealEnd: 0,
+    courseEnd: 0,
     ...overrides,
   };
 
