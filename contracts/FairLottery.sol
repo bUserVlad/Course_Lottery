@@ -29,6 +29,10 @@ contract FairLottery {
     error EmptyMerkleRoot();
     error NoPlaces();
     error NotOwner();
+    error NoRefundCourseFee();
+    error NoCourseFee();
+    error AlreadyWithdrawn();
+    error WrongFunction();
 
 
     // Phases each lottery can have
@@ -73,12 +77,13 @@ contract FairLottery {
     bytes32 public seed;
     bytes32 public merkleRoot; 
     uint256 public moneyDeposited;
-    uint256 public payOutToWinners;
+    uint256 public forfeitedPoolPayOutToWinners;
     uint256 public forfeitedPool;
     uint256 public nextWaiting;
 
     bool public everyoneCommits;
     bool public theCourseCosts;
+    bool private feesWithdrawn;
     
     address[] private winners;
     address[] private waitingList;
@@ -136,7 +141,6 @@ contract FairLottery {
     }
 
     function register(bytes32[] calldata proof) external payable inPhase(Phase.Registration){
-        // if (block.timestamp > registrationEnd) revert RegistrationClosed(); 
         Participant storage p = participants[msg.sender];
         if (p.registered) revert AlreadyRegistered();
         if (msg.value != deposit) revert WrongAmount();
@@ -160,7 +164,6 @@ contract FairLottery {
 
     // Private unregister function of the external unregister and claimDeposit function
     function _unregister(address who) private {
-        // require(block.timestamp < registrationEnd, "Registration closed. Can't unregistrate.");
         Participant storage p = participants[who];
         if (!p.registered) revert NotRegistered();
         
@@ -218,7 +221,6 @@ contract FairLottery {
         emit LeftWaitingList(msg.sender);
     }
 
-
     function claimDeposit() external {
         if (currentPhase() < Phase.Drawn) revert WrongPhase();
         Participant storage p = participants[msg.sender];
@@ -229,7 +231,6 @@ contract FairLottery {
 
         refundDeposit(msg.sender, deposit);
     }
-
 
     // Looking for the next address in the waiting list and ignoring participants who already left.
     // Could be costly if many participants leave but in this situation it should be feasible.
@@ -252,6 +253,7 @@ contract FairLottery {
         p.registered = false;
         moneyDeposited -= amount;
         
+        // Make sure to revert the statements above if deposit is not payable
         (bool ok, ) = payable(receivingAddress).call{value: amount}("");
         if (!ok) revert RefundFailed();
     }
@@ -283,8 +285,9 @@ contract FairLottery {
         if (p.commitHash != generateCommitHash(msg.sender, number, secret)) revert WrongInputs();
         p.revealed = true;
         revealedList.push(msg.sender);
-        // to prevent that someone could bring the seed to the limit with type(uint256).max
-        // like the OpenSSH issue
+
+        // Hashing instead of adding: with seed + number, revealing type(uint256).max
+        // would cause an overflow and make every later reveal revert
         seed = keccak256(abi.encode(seed, number));
         emit Revealed(msg.sender);
     }
@@ -342,16 +345,33 @@ contract FairLottery {
         if (block.timestamp < courseEnd) revert WrongPhase();
         phase = Phase.Finished;
         if (winners.length > 0) {
-            payOutToWinners = deposit + forfeitedPool / winners.length;
+            forfeitedPoolPayOutToWinners =forfeitedPool / winners.length;
         }
     }
 
-
+    // Refunding winner with the deposit and forfeited amount or only forfeited amout if the course costs
     function refundWinnersAfterDeadline() external inPhase(Phase.Finished){
         Participant storage p = participants[msg.sender];
         if (!p.won) revert NotWinner();
         if (p.depositRefunded) revert AlreadyRefunded();
-        refundDeposit(msg.sender, payOutToWinners);    
+
+        uint256 amount = theCourseCosts ? forfeitedPoolPayOutToWinners : forfeitedPoolPayOutToWinners + deposit;
+        refundDeposit(msg.sender, amount);
+    }
+
+    // Paying the course owner the course cost
+    function withdrawCourseFees() external inPhase(Phase.Finished) {
+        if (msg.sender != owner) revert NotOwner();
+        if (!theCourseCosts) revert NoCourseFee();
+        if (feesWithdrawn) revert AlreadyWithdrawn();
+        feesWithdrawn = true;
+
+        // paying out the total course amount plus the remainder of the forfeitedPool
+        uint256 amount = winners.length * deposit + forfeitedPool - forfeitedPoolPayOutToWinners * winners.length;
+        moneyDeposited -= amount;
+
+        (bool ok, ) = payable(owner).call{value: amount}("");
+        if (!ok) revert RefundFailed();
     }
 
     // Overview of the participant list
