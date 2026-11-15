@@ -179,7 +179,7 @@ contract FairLottery {
         emit Registered(msg.sender);
     }
 
-    // If apces are left after the draw because not enough people registered or
+    // If available places are left after the draw because not enough people registered or
     // too many unregistered people can register late
     function lateRegister(bytes32[] calldata proof) external payable inPhase(Phase.Drawn){
         if (!lateRegistration) revert LateRegistrationDisabled();
