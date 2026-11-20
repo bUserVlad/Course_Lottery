@@ -36,7 +36,7 @@ contract FairLottery {
 
 
     // Phases each lottery can have
-    enum Phase {Registration, Commit, Reveal, ReadyToDraw, Drawn, CourseStarted, Finished}
+    enum Phase {Registration, Reveal, ReadyToDraw, Drawn, CourseStarted, Finished}
 
     event Registered(address indexed participant);
     event Unregistered(address indexed participant);
@@ -100,40 +100,37 @@ contract FairLottery {
     mapping(address => Participant) private participants;
 
     // Putting constructor variable into a struct because stack got too deep 
-    struct Config {
-        uint256 deposit;
-        uint256 refundPercentage;
-        uint256 availablePlaces;
-        bytes32 merkleRoot;
-        bool everyoneCommits;
-        bool theCourseCosts;
-        bool lateRegistration;
-        uint256 registrationMinutes;
-        uint256 commitMinutes;
-        uint256 revealMinutes;
-        uint256 withdrawMinutes;
-        uint256 courseDuration;
-    }
-
-    constructor(Config memory c) {
+    constructor (
+        uint256 deposit_,
+        uint256 refundPercentage_,
+        uint256 availablePlaces_,
+        bytes32 merkleRoot_,
+        bool everyoneCommits_,
+        bool theCourseCosts_,
+        bool lateRegistration_,
+        uint256 registrationMinutes_,
+        uint256 revealMinutes_,
+        uint256 withdrawMinutes_,
+        uint256 courseDuration_
+        ) {
         owner = msg.sender;
-        if (c.merkleRoot == bytes32(0)) revert EmptyMerkleRoot();
-        merkleRoot = c.merkleRoot;
-        deposit = c.deposit;
-        if (c.refundPercentage > 100) revert InvalidRefundPercentage();
-        refundPercentage = c.refundPercentage;
-        if (c.availablePlaces == 0) revert NoPlaces();
-        availablePlaces = c.availablePlaces;
-        everyoneCommits = c.everyoneCommits;
-        theCourseCosts = c.theCourseCosts;
-        lateRegistration = c.lateRegistration;
-        if (c.registrationMinutes == 0 || c.commitMinutes == 0 || c.revealMinutes == 0 ||
-            c.withdrawMinutes == 0 || c.courseDuration == 0) revert WrongTimeline();
-        registrationEnd = uint64(block.timestamp + c.registrationMinutes * 1 minutes);
-        commitEnd = registrationEnd + uint64(c.commitMinutes * 1 minutes);
-        revealEnd = commitEnd + uint64(c.revealMinutes * 1 minutes);
-        courseStart = revealEnd + uint64(c.withdrawMinutes * 1 minutes);
-        courseEnd = courseStart + uint64(c.courseDuration * 1 minutes);
+        if (merkleRoot_ == bytes32(0)) revert EmptyMerkleRoot();
+        merkleRoot = merkleRoot_;
+        deposit = deposit_;
+        if (refundPercentage_ > 100) revert InvalidRefundPercentage();
+        refundPercentage = refundPercentage_;
+        if (availablePlaces_ == 0) revert NoPlaces();
+        availablePlaces = availablePlaces_;
+        everyoneCommits = everyoneCommits_;
+        theCourseCosts = theCourseCosts_;
+        lateRegistration = lateRegistration_;
+        if (registrationMinutes_ == 0 || revealMinutes_ == 0 ||
+            withdrawMinutes_ == 0 || courseDuration_ == 0) revert WrongTimeline();
+        registrationEnd = uint64(block.timestamp + registrationMinutes_ * 1 minutes);
+        // commitEnd = registrationEnd + uint64(commitMinutes * 1 minutes);
+        revealEnd = registrationEnd + uint64(revealMinutes_ * 1 minutes);
+        courseStart = revealEnd + uint64(withdrawMinutes_ * 1 minutes);
+        courseEnd = courseStart + uint64(courseDuration_ * 1 minutes);
     }
 
     // Updating the merkle root if a new student registers and wants to participate
@@ -151,7 +148,7 @@ contract FairLottery {
             return block.timestamp < courseStart ? Phase.Drawn : Phase.CourseStarted;
         }
         if (block.timestamp < registrationEnd) return Phase.Registration;
-        if (block.timestamp < commitEnd) return Phase.Commit;
+        // if (block.timestamp < commitEnd) return Phase.Commit;
         if (block.timestamp < revealEnd) return Phase.Reveal;
         return Phase.ReadyToDraw;
     } 
@@ -310,7 +307,7 @@ contract FairLottery {
 
     // As an inspiration:
     // https://github.com/cifunibas/Smart-Contracts-DeFi/blob/main/contracts/sealedBidAuctionB.sol
-    function commit(bytes32 commitHash) external inPhase(Phase.Commit) {
+    function commit(bytes32 commitHash) external inPhase(Phase.Registration) {
         Participant storage p = participants[msg.sender];
         if (!p.registered) revert NotRegistered();
         if (p.commitHash != bytes32(0)) revert AlreadyCommitted();
@@ -322,8 +319,8 @@ contract FairLottery {
     }
 
     // https://github.com/cifunibas/Smart-Contracts-DeFi/blob/main/contracts/sealedBidAuctionB.sol
-    function generateCommitHash(address _who, uint _number, string memory _secret) public pure returns (bytes32 sealedHash) {
-        sealedHash = keccak256(abi.encodePacked(_who, _number, _secret));
+    function generateCommitHash(uint _number, string memory _secret) public view returns (bytes32 sealedHash) {
+        sealedHash = keccak256(abi.encodePacked(msg.sender, _number, _secret));
     }
 
     // Not everyone has to reveal
@@ -332,7 +329,7 @@ contract FairLottery {
         if (!p.registered) revert NotRegistered();
         if (p.commitHash == bytes32(0) ) revert EmptyHash();
         if (p.revealed) revert AlreadyRevealed();
-        if (p.commitHash != generateCommitHash(msg.sender, number, secret)) revert WrongInputs();
+        if (p.commitHash != generateCommitHash(number, secret)) revert WrongInputs();
         p.revealed = true;
         revealedList.push(msg.sender);
 
