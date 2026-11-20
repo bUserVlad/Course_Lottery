@@ -64,7 +64,6 @@ contract FairLottery {
         bool depositRefunded;
         uint256 listIndex;
         uint256 winnersIndex;
-        uint256 waitingIndex;
     }
 
     // All variables that a lottery needs for a course participation
@@ -383,7 +382,6 @@ contract FairLottery {
                 emit Winner(picked);
             } else { // waitings list
                 p.waiting = true;
-                p.waitingIndex = waitingList.length;
                 waitingList.push(picked);
                 emit Waiter(picked);
             }

@@ -1,8 +1,6 @@
 import { expect } from "chai";
 import { network } from "hardhat";
 import { StandardMerkleTree } from "@openzeppelin/merkle-tree";
-import { keccak256, Network } from "ethers";
-import { start } from "repl";
 
 const { ethers, networkHelpers } = await network.create();
 
@@ -17,7 +15,6 @@ async function deployLottery(overrides = {}) {
   );
 
   // Parameters for the lottery 
-  const now = (await ethers.provider.getBlock("latest"))!.timestamp;
   const params = {
     merkleRoot: tree.root,
     deposit: ethers.parseEther("0.0001"),
@@ -171,19 +168,19 @@ describe("FairLottery: Deposit claim", function () {
   }
 
   it("Can't claim the deposit twice", async function () {
-    const ctx = await registerFive();
-    const { lottery, params, anna, bruno, claudia, diego, elodie } = ctx;
+    const deployment = await registerFive();
+    const { lottery, params, anna, bruno, claudia, diego, elodie } = deployment;
     await lottery.draw();
 
     const notPicked = await findNotPicked(lottery, [anna, bruno, claudia, diego, elodie]);
 
     await expect(lottery.connect(notPicked).claimDeposit())
       .to.changeEtherBalance(ethers, notPicked, params.deposit);
+    await expect(lottery.connect(notPicked).claimDeposit())
+      .to.revertedWithCustomError(lottery, "NotRegistered");
   });
   
-  // TODO
-  
-  it("Should be able to register again after claiming Deposit", async function () {
+  it("Should be able to register again after the unregistration", async function () {
     const {lottery, tree, params, elodie} = await deployLottery();
     await registerAs(lottery, tree, elodie, params.deposit);
     await lottery.connect(elodie).unregister();
@@ -505,9 +502,11 @@ describe("FairLottery: Reveal function", function () {
     await registerAs(lottery, tree, elodie, params.deposit);
     return deployment;
   };
+  
   async function startReveal(params: any) {
     await networkHelpers.time.increaseTo(params.registrationEnd);
   }
+
   it("Reveal works with a true commit", async function () {
     const deployment = await deployLottery();
     const {lottery, params, elodie} = deployment;
@@ -536,7 +535,7 @@ describe("FairLottery: Reveal function", function () {
 
   it("Reveals only own correct values", async function() {
     const deployment = await commitFive();
-    const { lottery, params, anna, bruno, claudia, diego, elodie } = deployment;
+    const { lottery, params, bruno, diego, elodie } = deployment;
 
     const hashElodie = await lottery.connect(elodie).generateCommitHash(NUMBER, SECRET);
     await lottery.connect(elodie).commit(hashElodie);
@@ -552,7 +551,7 @@ describe("FairLottery: Reveal function", function () {
 
   it("Reveals only own correct values 2", async function() {
     const deployment = await commitFive();
-    const { lottery, params, anna, bruno, claudia, diego, elodie } = deployment;
+    const { lottery, params, bruno, diego, elodie } = deployment;
 
     const hashElodie = await lottery.connect(elodie).generateCommitHash(NUMBER, SECRET);
     await lottery.connect(elodie).commit(hashElodie);
@@ -568,7 +567,7 @@ describe("FairLottery: Reveal function", function () {
 
   it("Rejects a second reveal", async function() {
     const deployment = await commitFive();
-    const { lottery, params, anna, bruno, claudia, diego, elodie } = deployment;
+    const { lottery, params, elodie } = deployment;
 
     const hashElodie = await lottery.connect(elodie).generateCommitHash(NUMBER, SECRET);
     await lottery.connect(elodie).commit(hashElodie);
@@ -582,7 +581,7 @@ describe("FairLottery: Reveal function", function () {
 
   it("Rejects reveal if never commited", async function() {
     const deployment = await commitFive();
-    const { lottery, params, anna, bruno, claudia, diego, elodie } = deployment;
+    const { lottery, params, elodie } = deployment;
 
     await networkHelpers.time.increaseTo(params.registrationEnd);
 
@@ -592,7 +591,7 @@ describe("FairLottery: Reveal function", function () {
 
   it("Lottery Seed gets adjusted corectly after two reveals", async function() {
     const deployment = await deployLottery();
-    const { lottery, params, anna, bruno, claudia, diego, elodie } = deployment;
+    const { lottery, params, diego, elodie } = deployment;
 
     await commitAs(deployment, elodie);
     await commitAs(deployment, diego, 42, SECRET);
@@ -663,7 +662,7 @@ describe("FairLottery: Modes, payouts and edge cases", function () {
   });
 
   it("Only the owner can withdraw the course fees", async function () {
-    const { lottery, params, owner, anna } = await registerFiveWith({ theCourseCosts: true });
+    const { lottery, params, anna } = await registerFiveWith({ theCourseCosts: true });
     await lottery.draw();
     await networkHelpers.time.increaseTo(params.courseEnd);
     await lottery.finalize();
@@ -671,8 +670,9 @@ describe("FairLottery: Modes, payouts and edge cases", function () {
     await expect(lottery.connect(anna).withdrawCourseFees())
       .to.be.revertedWithCustomError(lottery, "NotOwner");
   });
+
   it("theCourseCosts: owner gets the fees once, winners only the pool share", async function () {
-    const { lottery, params, owner, anna } = await registerFiveWith({ theCourseCosts: true });
+    const { lottery, params, owner } = await registerFiveWith({ theCourseCosts: true });
     await lottery.draw();
     await networkHelpers.time.increaseTo(params.courseEnd);
     await lottery.finalize();
@@ -726,7 +726,7 @@ describe("FairLottery: Modes, payouts and edge cases", function () {
 
     const secretWord = "highLevelSecret";
 
-    // Nur anna und bruno committen und revealen
+    // Only Anna and Bruno are commiting and revealing
     for (const [s, n] of [[anna, 1], [bruno, 2]] as const) {
       const hash = await lottery.connect(s).generateCommitHash(n, secretWord);
       await lottery.connect(s).commit(hash);
