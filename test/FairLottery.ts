@@ -608,5 +608,256 @@ describe("FairLottery: Reveal function", function () {
     expect(seedDiego).to.not.equal(seedElodie);
 
   });
+});
 
+describe("FairLottery: Modes, payouts and edge cases", function () {
+
+  async function registerFiveWith(overrides = {}) {
+    const deployment = await deployLottery(overrides);
+    const { lottery, tree, params, anna, bruno, claudia, diego, elodie } = deployment;
+    for (const s of [anna, bruno, claudia, diego, elodie]) {
+      await registerAs(lottery, tree, s, params.deposit);
+    }
+    await networkHelpers.time.increaseTo(params.revealEnd);
+    return deployment;
+  }
+
+  async function balanceOf(lottery: any) {
+    return ethers.provider.getBalance(await lottery.getAddress());
+  }
+
+  it("Lottery is empty after all payouts (one winner declined)", async function () {
+    const { lottery, params, owner, anna, bruno, claudia, diego, elodie } = await registerFiveWith();
+    await lottery.draw();
+
+    const decliner = await ethers.getSigner((await lottery.getWinners())[0]);
+    await lottery.connect(decliner).refundAfterPlaceGranted();
+
+    await networkHelpers.time.increaseTo(params.courseEnd);
+    await lottery.finalize();
+
+    const winners = await lottery.getWinners();
+    for (const s of [anna, bruno, claudia, diego, elodie]) {
+      if (winners.includes(s.address)) {
+        await lottery.connect(s).refundWinnersAfterDeadline();
+      } else if (s.address !== decliner.address) {
+        await lottery.connect(s).claimDeposit();
+      }
+    }
+    await lottery.connect(owner).withdrawUndistributed();
+
+    expect(await balanceOf(lottery)).to.equal(0n);
+    expect(await lottery.moneyDeposited()).to.equal(0n);
+  });
+
+  it("Winner can't be refunded twice", async function () {
+    const { lottery, params } = await registerFiveWith();
+    await lottery.draw();
+    await networkHelpers.time.increaseTo(params.courseEnd);
+    await lottery.finalize();
+
+    const winner = await ethers.getSigner((await lottery.getWinners())[0]);
+    await lottery.connect(winner).refundWinnersAfterDeadline();
+    await expect(lottery.connect(winner).refundWinnersAfterDeadline())
+      .to.be.revertedWithCustomError(lottery, "AlreadyRefunded");
+  });
+
+  it("Only the owner can withdraw the course fees", async function () {
+    const { lottery, params, owner, anna } = await registerFiveWith({ theCourseCosts: true });
+    await lottery.draw();
+    await networkHelpers.time.increaseTo(params.courseEnd);
+    await lottery.finalize();
+
+    await expect(lottery.connect(anna).withdrawCourseFees())
+      .to.be.revertedWithCustomError(lottery, "NotOwner");
+  });
+  it("theCourseCosts: owner gets the fees once, winners only the pool share", async function () {
+    const { lottery, params, owner, anna } = await registerFiveWith({ theCourseCosts: true });
+    await lottery.draw();
+    await networkHelpers.time.increaseTo(params.courseEnd);
+    await lottery.finalize();
+
+    const fees = params.deposit * BigInt(params.availablePlaces);
+    await expect(lottery.connect(owner).withdrawCourseFees())
+      .to.changeEtherBalance(ethers, owner, fees);
+    await expect(lottery.connect(owner).withdrawCourseFees())
+      .to.be.revertedWithCustomError(lottery, "AlreadyWithdrawn");
+
+    const winner = await ethers.getSigner((await lottery.getWinners())[0]);
+    await expect(lottery.connect(winner).refundWinnersAfterDeadline())
+      .to.changeEtherBalance(ethers, winner, 0n);
+  });
+
+  it("withdrawCourseFees is rejected if the course is free", async function () {
+    const { lottery, params, owner } = await registerFiveWith();
+    await lottery.draw();
+    await networkHelpers.time.increaseTo(params.courseEnd);
+    await lottery.finalize();
+
+    await expect(lottery.connect(owner).withdrawCourseFees())
+      .to.be.revertedWithCustomError(lottery, "NoCourseFee");
+  });
+
+  it("If all winners decline the owner gets the whole pool once", async function () {
+    const { lottery, tree, params, owner, anna, bruno } = await deployLottery();
+    await registerAs(lottery, tree, anna, params.deposit);
+    await registerAs(lottery, tree, bruno, params.deposit);
+    await networkHelpers.time.increaseTo(params.revealEnd);
+    await lottery.draw();
+
+    await lottery.connect(anna).refundAfterPlaceGranted();
+    await lottery.connect(bruno).refundAfterPlaceGranted();
+    expect((await lottery.getWinners()).length).to.equal(0);
+
+    await networkHelpers.time.increaseTo(params.courseEnd);
+    await lottery.finalize();
+
+    const pool = await lottery.forfeitedPool();
+    await expect(lottery.connect(owner).withdrawUndistributed())
+      .to.changeEtherBalance(ethers, owner, pool);
+    await expect(lottery.connect(owner).withdrawUndistributed())
+      .to.be.revertedWithCustomError(lottery, "AlreadyWithdrawn");
+    expect(await balanceOf(lottery)).to.equal(0n);
+  });
+
+  it("everyoneCommits: only revealers are drawn, the others lose their deposit", async function () {
+    const { lottery, tree, params, anna, bruno, claudia } = await deployLottery({ everyoneCommits: true });
+    for (const s of [anna, bruno, claudia]) await registerAs(lottery, tree, s, params.deposit);
+
+    const secretWord = "highLevelSecret";
+
+    // Nur anna und bruno committen und revealen
+    for (const [s, n] of [[anna, 1], [bruno, 2]] as const) {
+      const hash = await lottery.connect(s).generateCommitHash(n, secretWord);
+      await lottery.connect(s).commit(hash);
+    }
+    await networkHelpers.time.increaseTo(params.registrationEnd);
+    await lottery.connect(anna).reveal(1, secretWord);
+    await lottery.connect(bruno).reveal(2, secretWord);
+    await networkHelpers.time.increaseTo(params.revealEnd);
+    await lottery.draw();
+
+    const winners = await lottery.getWinners();
+    expect(winners).to.have.members([anna.address, bruno.address]);
+    expect(await lottery.forfeitedPool()).to.equal(params.deposit); // claudias deposit
+    await expect(lottery.connect(claudia).claimDeposit())
+      .to.be.revertedWithCustomError(lottery, "NotRevealed");
+  });
+
+  it("lateRegister is rejected if late registration is disabled", async function () {
+    const { lottery, tree, params, anna, diego } = await deployLottery();
+    await registerAs(lottery, tree, anna, params.deposit);
+    await networkHelpers.time.increaseTo(params.revealEnd);
+    await lottery.draw();
+
+    await expect(lottery.connect(diego).lateRegister(tree.getProof([diego.address]), { value: params.deposit }))
+      .to.be.revertedWithCustomError(lottery, "LateRegistrationDisabled");
+  });
+
+  it("lateRegister fills free places and stops when the course is full", async function () {
+    const { lottery, tree, params, anna, bruno, claudia } = await deployLottery({ lateRegistration: true });
+    await registerAs(lottery, tree, anna, params.deposit);
+    await networkHelpers.time.increaseTo(params.revealEnd);
+    await lottery.draw();
+
+    await expect(lottery.connect(bruno).lateRegister(tree.getProof([bruno.address]), { value: params.deposit }))
+      .to.emit(lottery, "Winner").withArgs(bruno.address);
+    expect(await lottery.checkIfWon(bruno.address)).to.equal(true);
+
+    await expect(lottery.connect(claudia).lateRegister(tree.getProof([claudia.address]), { value: params.deposit }))
+      .to.be.revertedWithCustomError(lottery, "CantRegisterAnymore");
+  });
+
+  it("leaveWaitingList refunds fully and the person who left is skipped when a winner declines", async function () {
+    const { lottery, params } = await registerFiveWith();
+    await lottery.draw();
+
+    const waiting = await lottery.getWaitingList();
+    const leaver = await ethers.getSigner(waiting[0]);
+    await expect(lottery.connect(leaver).leaveWaitingList())
+      .to.changeEtherBalance(ethers, leaver, params.deposit);
+
+    const decliner = await ethers.getSigner((await lottery.getWinners())[0]);
+    await lottery.connect(decliner).refundAfterPlaceGranted();
+
+    const winners = await lottery.getWinners();
+    expect(winners).to.include(waiting[1]);
+    expect(winners).not.to.include(leaver.address);
+  });
+
+  it("leaveWaitingList is rejected for someone not on the waiting list", async function () {
+    const { lottery } = await registerFiveWith();
+    await lottery.draw();
+
+    const winner = await ethers.getSigner((await lottery.getWinners())[0]);
+    await expect(lottery.connect(winner).leaveWaitingList())
+      .to.be.revertedWithCustomError(lottery, "NotOnWaitingList");
+  });
+
+  it("Waiter must use leaveWaitingList before courseStart, claimDeposit after", async function () {
+    const { lottery, params } = await registerFiveWith();
+    await lottery.draw();
+
+    const waiter = await ethers.getSigner((await lottery.getWaitingList())[0]);
+    await expect(lottery.connect(waiter).claimDeposit())
+      .to.be.revertedWithCustomError(lottery, "UseLeaveWaitingList");
+
+    await networkHelpers.time.increaseTo(params.courseStart);
+    await expect(lottery.connect(waiter).claimDeposit())
+      .to.changeEtherBalance(ethers, waiter, params.deposit);
+    expect(await lottery.checkIfWaitingList(waiter.address)).to.equal(false);
+  });
+
+  it("Winner can't use claimDeposit", async function () {
+    const { lottery } = await registerFiveWith();
+    await lottery.draw();
+
+    const winner = await ethers.getSigner((await lottery.getWinners())[0]);
+    await expect(lottery.connect(winner).claimDeposit())
+      .to.be.revertedWithCustomError(lottery, "UseRefundWinnersAfterDeadline");
+  });
+
+  it("Declining and finalizing are only possible in the right time window", async function () {
+    const { lottery, params } = await registerFiveWith();
+    await lottery.draw();
+    const winner = await ethers.getSigner((await lottery.getWinners())[0]);
+
+    await networkHelpers.time.increaseTo(params.courseStart);
+    await expect(lottery.connect(winner).refundAfterPlaceGranted())
+      .to.be.revertedWithCustomError(lottery, "WrongPhase");
+    await expect(lottery.finalize())
+      .to.be.revertedWithCustomError(lottery, "WrongPhase");
+  });
+
+  it("Only the owner can update the Merkle root", async function () {
+    const { lottery, params, owner, florian, globi } = await deployLottery();
+    const newTree = StandardMerkleTree.of([[florian.address], [globi.address]], ["address"]);
+
+    await expect(lottery.connect(florian).updateMerkleTree(newTree.root))
+      .to.be.revertedWithCustomError(lottery, "NotOwner");
+    await expect(lottery.connect(owner).updateMerkleTree(newTree.root))
+      .to.emit(lottery, "UpdateMerkleTree");
+    await expect(lottery.connect(globi).register(newTree.getProof([globi.address]), { value: params.deposit }))
+      .to.emit(lottery, "Registered").withArgs(globi.address);
+  });
+
+  it("The owner can update the Merkle root only during registration", async function () {
+    const { lottery, params, owner, florian, globi } = await deployLottery();
+    const newTree = StandardMerkleTree.of([[florian.address], [globi.address]], ["address"]);
+
+    await networkHelpers.time.increaseTo(params.registrationEnd);
+    await expect(lottery.connect(owner).updateMerkleTree(newTree.root))
+      .to.be.revertedWithCustomError(lottery, "WrongPhase");
+  });
+
+  it("After unregistering and registering again, a new commit is possible", async function () {
+    const { lottery, tree, params, anna } = await deployLottery();
+    await registerAs(lottery, tree, anna, params.deposit);
+    await lottery.connect(anna).commit(await lottery.connect(anna).generateCommitHash(1, "old"));
+    await lottery.connect(anna).unregister();
+
+    await registerAs(lottery, tree, anna, params.deposit);
+    await expect(lottery.connect(anna).commit(await lottery.connect(anna).generateCommitHash(2, "new")))
+      .to.emit(lottery, "Committed").withArgs(anna.address);
+  });
 });

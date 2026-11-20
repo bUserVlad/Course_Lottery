@@ -51,8 +51,8 @@ contract FairLottery {
     event ClaimedDeposit(address indexed participant, uint256 amount);
     event WinnerRefunded(address indexed participant, uint256 amount);
     event Finalized(uint256 forfeitedPool, uint256 sharePerWinner);
-    event CourseFeesWithdrawn(uint256 participant);
-    event UndistributedAmountWithdawn(uint256 amount);
+    event CourseFeesWithdrawn(uint256 amount);
+    event UndistributedAmountWithdrawn(uint256 amount);
 
     // Variables for the participants
     struct Participant {
@@ -73,7 +73,6 @@ contract FairLottery {
     uint256 public immutable refundPercentage;
     uint256 public immutable availablePlaces;
     uint64 public immutable registrationEnd;
-    uint64 public immutable commitEnd;
     uint64 public immutable revealEnd;
     uint64 public immutable courseStart;
     uint64 public immutable courseEnd;
@@ -127,7 +126,6 @@ contract FairLottery {
         if (registrationMinutes_ == 0 || revealMinutes_ == 0 ||
             withdrawMinutes_ == 0 || courseDuration_ == 0) revert WrongTimeline();
         registrationEnd = uint64(block.timestamp + registrationMinutes_ * 1 minutes);
-        // commitEnd = registrationEnd + uint64(commitMinutes * 1 minutes);
         revealEnd = registrationEnd + uint64(revealMinutes_ * 1 minutes);
         courseStart = revealEnd + uint64(withdrawMinutes_ * 1 minutes);
         courseEnd = courseStart + uint64(courseDuration_ * 1 minutes);
@@ -148,7 +146,6 @@ contract FairLottery {
             return block.timestamp < courseStart ? Phase.Drawn : Phase.CourseStarted;
         }
         if (block.timestamp < registrationEnd) return Phase.Registration;
-        // if (block.timestamp < commitEnd) return Phase.Commit;
         if (block.timestamp < revealEnd) return Phase.Reveal;
         return Phase.ReadyToDraw;
     } 
@@ -216,6 +213,7 @@ contract FairLottery {
         participantList[pIndex] = last;
         participants[last].listIndex = pIndex;
         participantList.pop();
+        p.commitHash = bytes32(0);
         
         refundDeposit(who, deposit);
 
@@ -257,7 +255,6 @@ contract FairLottery {
     function leaveWaitingList() external inPhase(Phase.Drawn) {
         Participant storage p = participants[msg.sender];
         if (!p.waiting) revert NotOnWaitingList();    
-        p.waiting = false;
 
         refundDeposit(msg.sender, deposit);
 
@@ -298,6 +295,7 @@ contract FairLottery {
         if (p.depositRefunded) revert AlreadyRefunded();
         p.depositRefunded = true;
         p.registered = false;
+        p.waiting = false;
         moneyDeposited -= amount;
         
         // Make sure to revert the statements above if deposit is not payable
@@ -446,7 +444,7 @@ contract FairLottery {
         (bool ok, ) = payable(owner).call{value: amount}("");
         if (!ok) revert RefundFailed();
         
-        emit UndistributedAmountWithdawn(amount);
+        emit UndistributedAmountWithdrawn(amount);
     }
 
     // Overview of the participant list
