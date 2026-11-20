@@ -1,0 +1,208 @@
+{
+  "contracts": {
+    "contracts/FairLottery.sol:FairLottery": {
+      "sourceName": "contracts/FairLottery.sol",
+      "contractName": "FairLottery",
+      "proxyChain": [],
+      "deployment": {
+        "min": 3952067,
+        "max": 3952079,
+        "avg": 3952068,
+        "median": 3952067,
+        "count": 61,
+        "runtimeSize": 17958
+      },
+      "functions": {
+        "checkIfWaitingList": {
+          "min": 27005,
+          "max": 27027,
+          "avg": 27016,
+          "median": 27017,
+          "count": 3
+        },
+        "checkIfWon": {
+          "min": 27050,
+          "max": 27062,
+          "avg": 27054,
+          "median": 27050,
+          "count": 6
+        },
+        "claimDeposit": {
+          "min": 56846,
+          "max": 62459,
+          "avg": 60788,
+          "median": 61924,
+          "count": 4
+        },
+        "commit": {
+          "min": 50243,
+          "max": 50255,
+          "avg": 50253,
+          "median": 50255,
+          "count": 15
+        },
+        "courseEnd": {
+          "min": 21486,
+          "max": 21486,
+          "avg": 21486,
+          "median": 21486,
+          "count": 61
+        },
+        "courseStart": {
+          "min": 21464,
+          "max": 21464,
+          "avg": 21464,
+          "median": 21464,
+          "count": 61
+        },
+        "draw": {
+          "min": 71140,
+          "max": 270266,
+          "avg": 241610,
+          "median": 270266,
+          "count": 31
+        },
+        "finalize": {
+          "min": 34896,
+          "max": 55396,
+          "avg": 41096,
+          "median": 35496,
+          "count": 7
+        },
+        "forfeitedPool": {
+          "min": 23622,
+          "max": 23622,
+          "avg": 23622,
+          "median": 23622,
+          "count": 2
+        },
+        "generateCommitHash": {
+          "min": 23844,
+          "max": 24189,
+          "avg": 24125,
+          "median": 24189,
+          "count": 18
+        },
+        "getParticipants": {
+          "min": 23954,
+          "max": 29035,
+          "avg": 26512,
+          "median": 26529,
+          "count": 4
+        },
+        "getWaitingList": {
+          "min": 24022,
+          "max": 29103,
+          "avg": 28468,
+          "median": 29103,
+          "count": 16
+        },
+        "getWinners": {
+          "min": 23953,
+          "max": 29034,
+          "avg": 28695,
+          "median": 29034,
+          "count": 30
+        },
+        "lateRegister": {
+          "min": 111402,
+          "max": 111402,
+          "avg": 111402,
+          "median": 111402,
+          "count": 1
+        },
+        "leaveWaitingList": {
+          "min": 60787,
+          "max": 60787,
+          "avg": 60787,
+          "median": 60787,
+          "count": 1
+        },
+        "moneyDeposited": {
+          "min": 23534,
+          "max": 23534,
+          "avg": 23534,
+          "median": 23534,
+          "count": 1
+        },
+        "refundAfterPlaceGranted": {
+          "min": 75598,
+          "max": 134389,
+          "avg": 122351,
+          "median": 129066,
+          "count": 14
+        },
+        "refundWinnersAfterDeadline": {
+          "min": 58646,
+          "max": 68341,
+          "avg": 66402,
+          "median": 68341,
+          "count": 5
+        },
+        "register": {
+          "min": 109785,
+          "max": 124888,
+          "avg": 114679,
+          "median": 109795,
+          "count": 174
+        },
+        "registrationEnd": {
+          "min": 21485,
+          "max": 21485,
+          "avg": 21485,
+          "median": 21485,
+          "count": 61
+        },
+        "reveal": {
+          "min": 87097,
+          "max": 121489,
+          "avg": 110021,
+          "median": 121393,
+          "count": 6
+        },
+        "revealEnd": {
+          "min": 21528,
+          "max": 21528,
+          "avg": 21528,
+          "median": 21528,
+          "count": 61
+        },
+        "seed": {
+          "min": 23535,
+          "max": 23535,
+          "avg": 23535,
+          "median": 23535,
+          "count": 3
+        },
+        "unregister": {
+          "min": 65065,
+          "max": 67305,
+          "avg": 65438,
+          "median": 65065,
+          "count": 6
+        },
+        "updateMerkleTree": {
+          "min": 31203,
+          "max": 31203,
+          "avg": 31203,
+          "median": 31203,
+          "count": 1
+        },
+        "withdrawCourseFees": {
+          "min": 61862,
+          "max": 61862,
+          "avg": 61862,
+          "median": 61862,
+          "count": 1
+        },
+        "withdrawUndistributed": {
+          "min": 56886,
+          "max": 61586,
+          "avg": 59236,
+          "median": 59236,
+          "count": 2
+        }
+      }
+    }
+  }
+}

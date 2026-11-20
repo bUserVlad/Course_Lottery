@@ -97,7 +97,6 @@ contract FairLottery {
     address[] private revealedList;
     mapping(address => Participant) private participants;
 
-    // Putting constructor variable into a struct because stack got too deep 
     constructor (
         uint256 deposit_,
         uint256 refundPercentage_,
@@ -160,6 +159,7 @@ contract FairLottery {
         if (p.registered) revert AlreadyRegistered();
         if (msg.value != deposit) revert WrongAmount();
 
+        // github.com/OpenZeppelin/merkle-tree
         bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(msg.sender))));
         if (!MerkleProof.verify(proof, merkleRoot, leaf)) revert NotEligible();
 
@@ -181,6 +181,7 @@ contract FairLottery {
         if (p.registered) revert AlreadyRegistered();
         if (msg.value != deposit) revert WrongAmount();
 
+        // github.com/OpenZeppelin/merkle-tree
         bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(msg.sender))));
         if (!MerkleProof.verify(proof, merkleRoot, leaf)) revert NotEligible();
 
@@ -340,7 +341,7 @@ contract FairLottery {
         drawWinnersShuffleArray();
         phase = Phase.Drawn;
 
-        // Deposit of not revealed participants gets int othe forfeitedPool if everyone has to commit
+        // Deposit of not revealed participants gets in to the forfeitedPool if everyone has to commit
         if (everyoneCommits) {
             forfeitedPool += (participantList.length - revealedList.length) * deposit;
         }
@@ -389,7 +390,7 @@ contract FairLottery {
     }
 
     
-    // Anyone can close the after the course has started
+    // Anyone can close the lottery after courseEnd
     function finalize() external inPhase(Phase.CourseStarted) {
         if (block.timestamp < courseEnd) revert WrongPhase();
         phase = Phase.Finished;
@@ -400,7 +401,7 @@ contract FairLottery {
         emit Finalized(forfeitedPool, forfeitedPoolPayOutToWinners);
     }
 
-    // Refunding winner with the deposit and forfeited amount or only forfeited amout if the course costs
+    // Refunding winner with the deposit and forfeited amount or only forfeited aamount if the course costs
     function refundWinnersAfterDeadline() external inPhase(Phase.Finished){
         Participant storage p = participants[msg.sender];
         if (!p.won) revert NotWinner();
@@ -419,7 +420,7 @@ contract FairLottery {
         if (feesWithdrawn) revert AlreadyWithdrawn();
         feesWithdrawn = true;
 
-        // paying out the total course amount plus the remainder of the forfeitedPool
+        //Paying out the deposits of all winners as course fee
         uint256 amount = winners.length * deposit;
         moneyDeposited -= amount;
 
@@ -429,13 +430,13 @@ contract FairLottery {
         emit CourseFeesWithdrawn(amount);
     }
 
-    // Paying the course owner the undistributed amout if everyone backs up
+    // Paying the course owner the undistributed amount of the forfeitedPool
     function withdrawUndistributed() external inPhase(Phase.Finished) {
         if (msg.sender != owner) revert NotOwner();
         if (undistributedWithdrawn) revert AlreadyWithdrawn();
         undistributedWithdrawn = true;
 
-        // paying out the total course amount plus the remainder of the forfeitedPool
+        // paying out the remainder of the forfeitedPool
         uint256 amount = forfeitedPool - forfeitedPoolPayOutToWinners * winners.length;
         moneyDeposited -= amount;
 

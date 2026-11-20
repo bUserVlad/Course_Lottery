@@ -8,7 +8,6 @@ const { ethers, networkHelpers } = await network.create();
 async function deployLottery(overrides = {}) {
   const [owner, anna, bruno, claudia, diego, elodie, florian, globi] = await ethers.getSigners();
 
-  // Eligible are only anna and bruno 
   const tree = StandardMerkleTree.of(
     [[anna.address], [bruno.address], [claudia.address], [diego.address], [elodie.address]],
     ["address"]
@@ -310,7 +309,7 @@ describe("FairLottery: Fisher-Yates-Shuffle", function () {
     expect (waiter.length).to.be.equal(0);
   });
 
-  describe("FairLottery: Decline Places", async function() {
+  describe("FairLottery: Decline Places", function() {
     let lottery: any;
     let params: any;
     let decliner: any;
@@ -519,7 +518,7 @@ describe("FairLottery: Reveal function", function () {
       .to.emit(lottery, "Revealed")
       .withArgs(elodie.address);
 
-    const expectedSeed = ethers.keccak256(ethers.AbiCoder.defaultAbiCoder().encode(["bytes32", "int256"], [ethers.ZeroHash, NUMBER]));
+    const expectedSeed = ethers.keccak256(ethers.AbiCoder.defaultAbiCoder().encode(["bytes32", "uint256"], [ethers.ZeroHash, NUMBER]));
     expect (await lottery.seed()).to.equal(expectedSeed);
   });
 
@@ -561,7 +560,7 @@ describe("FairLottery: Reveal function", function () {
 
     await networkHelpers.time.increaseTo(params.registrationEnd);
 
-    await expect (lottery.connect(diego).reveal(NUMBER, SECRET))
+    await expect (lottery.connect(diego).reveal(42, SECRET))
       .to.be.revertedWithCustomError(lottery, "WrongInputs");
   });
 
