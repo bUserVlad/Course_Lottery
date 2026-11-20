@@ -476,4 +476,15 @@ contract FairLottery {
         return participants[participant].waiting;
     }
 
+    // Return phase status as name
+    function currentPhaseName() external view returns (string memory) {
+        Phase p = currentPhase();
+        if (p == Phase.Registration) return "Registration";
+        if (p == Phase.Reveal) return "Reveal";
+        if (p == Phase.ReadyToDraw) return "ReadyToDraw";
+        if (p == Phase.Drawn) return "Drawn";
+        if (p == Phase.CourseStarted) return "CourseStarted";
+        return "Finished";
+    }
+
 }
