@@ -38,6 +38,7 @@ contract FairLottery {
     // Phases each lottery can have
     enum Phase {Registration, Reveal, ReadyToDraw, Drawn, CourseStarted, Finished}
 
+    // Events
     event Registered(address indexed participant);
     event Unregistered(address indexed participant);
     event LeftWaitingList(address indexed participant);
@@ -97,6 +98,10 @@ contract FairLottery {
     address[] private revealedList;
     mapping(address => Participant) private participants;
 
+    // Constructor
+    // merkleRoot can't be empty and availablePlaces, registrationMinutes,
+    // revealMinutes, withdrawMinutes and courseDuration have to be larger than zero.
+    // refundPercentage has to be between 0 and 100
     constructor (
         uint256 deposit_,
         uint256 refundPercentage_,
@@ -129,7 +134,7 @@ contract FairLottery {
         courseEnd = courseStart + uint64(courseDuration_ * 1 minutes);
     }
 
-    // Updating the merkle root if a new student registers and wants to participate
+    // Updating the merkle root if a new student registers and wants to participate. Only the owner can update it
     function updateMerkleTree(bytes32 newRoot) external inPhase(Phase.Registration) {
         if (msg.sender != owner) revert NotOwner();
         if (newRoot == bytes32(0)) revert EmptyMerkleRoot();
@@ -137,7 +142,9 @@ contract FairLottery {
         merkleRoot = newRoot;
     }
 
-    // Check current phase of the lottery
+    // Computes the current phase, nothing is written to storage.
+    // Only Drawn and Finished are stored (set by draw() and finalize()),
+    // all other phases follow from block.timestamp and the deadlines.
     function currentPhase() public view returns (Phase) {
         if (phase == Phase.Finished) return Phase.Finished;
         if (phase >= Phase.Drawn) {
@@ -148,21 +155,25 @@ contract FairLottery {
         return Phase.ReadyToDraw;
     } 
 
-    // Check current phase
+    // Reverts if the function is called outside the expected phase,
     modifier inPhase(Phase expectedPhase) {
         if (currentPhase() != expectedPhase) revert WrongPhase();
         _;
     }
 
+    // Registers msg.sender with the deposit. The leaf is computed from msg.sender,
+    // the proof contains the sibling hashes from the leaf up to the Merkle root.
     function register(bytes32[] calldata proof) external payable inPhase(Phase.Registration){
         Participant storage p = participants[msg.sender];
         if (p.registered) revert AlreadyRegistered();
         if (msg.value != deposit) revert WrongAmount();
 
+        // Double hashed leaf as in OpenZeppelin StandardMerkleTree:
         // github.com/OpenZeppelin/merkle-tree
         bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(msg.sender))));
         if (!MerkleProof.verify(proof, merkleRoot, leaf)) revert NotEligible();
 
+        // Updating the participants variables
         p.depositRefunded = false;
         p.registered = true;
         p.listIndex = participantList.length;
@@ -181,6 +192,7 @@ contract FairLottery {
         if (p.registered) revert AlreadyRegistered();
         if (msg.value != deposit) revert WrongAmount();
 
+        // Double hashed leaf as in OpenZeppelin StandardMerkleTree:
         // github.com/OpenZeppelin/merkle-tree
         bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(msg.sender))));
         if (!MerkleProof.verify(proof, merkleRoot, leaf)) revert NotEligible();
