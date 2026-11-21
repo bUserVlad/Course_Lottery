@@ -315,6 +315,7 @@ contract FairLottery {
         if (!ok) revert RefundFailed();
     }
 
+    // Committing the generated Hash
     // As an inspiration:
     // https://github.com/cifunibas/Smart-Contracts-DeFi/blob/main/contracts/sealedBidAuctionB.sol
     function commit(bytes32 commitHash) external inPhase(Phase.Registration) {
@@ -328,12 +329,14 @@ contract FairLottery {
         emit Committed (msg.sender);
     }
 
+    // Generating a hash based on the senders address, a number and a secret code.
     // https://github.com/cifunibas/Smart-Contracts-DeFi/blob/main/contracts/sealedBidAuctionB.sol
     function generateCommitHash(uint _number, string memory _secret) public view returns (bytes32 sealedHash) {
         sealedHash = keccak256(abi.encodePacked(msg.sender, _number, _secret));
     }
 
-    // Not everyone has to reveal
+    // Revealing the committed hash after the registration ended. The number from the generated hash will be used
+    // to calculate the seed number
     function reveal(uint256 number, string  memory secret) public inPhase(Phase.Reveal){
         Participant storage p = participants[msg.sender];
         if (!p.registered) revert NotRegistered();
@@ -349,6 +352,7 @@ contract FairLottery {
         emit Revealed(msg.sender);
     }
 
+    // Drawig the winners and waiters
     function draw() external inPhase(Phase.ReadyToDraw){
         drawWinnersShuffleArray();
         phase = Phase.Drawn;
@@ -362,7 +366,7 @@ contract FairLottery {
     }
 
     /*
-    Fisher-Yates-Shuffle
+    Fisher-Yates-Shuffle is used as the draw function
     https://ethereum.stackexchange.com/questions/129364/randomly-shuffling-a-mapping-in-solidity
     */
     function drawWinnersShuffleArray() private {
@@ -372,6 +376,8 @@ contract FairLottery {
         uint256 maxPicks = availablePlaces * 2; // Waiting list will be as long as the winners list
         uint256 picks = remaining < maxPicks ? remaining : maxPicks; // min(remaining, maxPicks)
         
+        // If committing is not mandatory a "random" number is generated and added to the seed number.
+        // This prevents a 0 if no one commits and / or reveals
         // https://speedrunethereum.com/guides/blockchain-randomness-solidity
         bytes32 seedAddOn;
         if (!everyoneCommits) {
