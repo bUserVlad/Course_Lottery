@@ -68,6 +68,8 @@ contract FairLottery {
     }
 
     // All variables that a lottery needs for a course participation
+    string public courseName;
+    string public courseNumber;
     address public immutable owner;
     uint256 public immutable deposit;
     uint256 public immutable refundPercentage;
@@ -98,11 +100,21 @@ contract FairLottery {
     address[] private revealedList;
     mapping(address => Participant) private participants;
 
+    // Durations in minutes, bundled to keep the constructor below the stack limit
+    struct Timeline {
+        uint256 registrationMinutes;
+        uint256 revealMinutes;
+        uint256 withdrawMinutes;
+        uint256 courseDuration;
+    }
+
     // Constructor
     // merkleRoot can't be empty and availablePlaces, registrationMinutes,
     // revealMinutes, withdrawMinutes and courseDuration have to be larger than zero.
     // refundPercentage has to be between 0 and 100
     constructor (
+        string memory courseName_,
+        string memory courseNumber_,
         uint256 deposit_,
         uint256 refundPercentage_,
         uint256 availablePlaces_,
@@ -110,12 +122,11 @@ contract FairLottery {
         bool everyoneCommits_,
         bool theCourseCosts_,
         bool lateRegistration_,
-        uint256 registrationMinutes_,
-        uint256 revealMinutes_,
-        uint256 withdrawMinutes_,
-        uint256 courseDuration_
+        Timeline memory t_
         ) {
         owner = msg.sender;
+        courseName = courseName_;
+        courseNumber = courseNumber_;
         if (merkleRoot_ == bytes32(0)) revert EmptyMerkleRoot();
         merkleRoot = merkleRoot_;
         deposit = deposit_;
@@ -126,12 +137,12 @@ contract FairLottery {
         everyoneCommits = everyoneCommits_;
         theCourseCosts = theCourseCosts_;
         lateRegistration = lateRegistration_;
-        if (registrationMinutes_ == 0 || revealMinutes_ == 0 ||
-            withdrawMinutes_ == 0 || courseDuration_ == 0) revert WrongTimeline();
-        registrationEnd = uint64(block.timestamp + registrationMinutes_ * 1 minutes);
-        revealEnd = registrationEnd + uint64(revealMinutes_ * 1 minutes);
-        courseStart = revealEnd + uint64(withdrawMinutes_ * 1 minutes);
-        courseEnd = courseStart + uint64(courseDuration_ * 1 minutes);
+        if (t_.registrationMinutes == 0 || t_.revealMinutes == 0 ||
+            t_.withdrawMinutes == 0 || t_.courseDuration == 0) revert WrongTimeline();
+        registrationEnd = uint64(block.timestamp + t_.registrationMinutes * 1 minutes);
+        revealEnd = registrationEnd + uint64(t_.revealMinutes * 1 minutes);
+        courseStart = revealEnd + uint64(t_.withdrawMinutes * 1 minutes);
+        courseEnd = courseStart + uint64(t_.courseDuration * 1 minutes);
     }
 
     // Updating the merkle root if a new student registers and wants to participate. Only the owner can update it

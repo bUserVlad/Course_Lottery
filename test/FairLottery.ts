@@ -15,6 +15,8 @@ async function deployLottery(overrides = {}) {
 
   // Parameters for the lottery 
   const params = {
+    courseName: "Smart Contracts and Decentralized Finance",
+    courseNumber: "52354-01",
     merkleRoot: tree.root,
     deposit: ethers.parseEther("0.0001"),
     refundPercentage: 50, // 50 %
@@ -37,6 +39,8 @@ async function deployLottery(overrides = {}) {
 
   // Deployment of the lottery with the previous created parameters
   const lottery = await ethers.deployContract("FairLottery", [
+    params.courseName,
+    params.courseNumber,
     params.deposit,
     params.refundPercentage,
     params.availablePlaces,
@@ -44,10 +48,12 @@ async function deployLottery(overrides = {}) {
     params.everyoneCommits,
     params.theCourseCosts,
     params.lateRegistration,
-    params.registrationMinutes,
-    params.revealMinutes,
-    params.withdrawMinutes,
-    params.courseDuration,
+    {
+      registrationMinutes: params.registrationMinutes,
+      revealMinutes: params.revealMinutes,
+      withdrawMinutes: params.withdrawMinutes,
+      courseDuration: params.courseDuration,
+    },
   ]);
 
   params.registrationEnd = Number(await lottery.registrationEnd());
