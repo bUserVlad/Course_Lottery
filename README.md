@@ -1,6 +1,6 @@
 # FairLottery: A Verifiable Lottery for Limited Course Places
 
-Smart contract project for the course *Smart Contracts and Decentralized Finance* (University of Basel, HS 2026).
+Smart contract project for the course *Smart Contracts and Decentralized Finance* (University of Basel, FS 2026).
 
 ## Problem
 
